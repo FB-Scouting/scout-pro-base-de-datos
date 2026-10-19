@@ -651,4 +651,109 @@ $('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')
 (async()=>{try{await Store.open();for(const k of ['matches','informes','files'])U[k]=(await Store.get(k))||[];U.photos=(await Store.get('photos'))||{};U.market=(await Store.get('market'))||{};U.searches=(await Store.get('searches'))||[];U.mkrev=(await Store.get('mkrev'))||{};U.brutos=(await Store.get('brutos'))||[];U.agenda=(await Store.get('agenda'))||[];U.rec=(await Store.get('rec'))||{};S.rec=U.rec;
  const m=await Store.get('mother');if(m&&m.db){applyMother(m.db,m.meta);return}}catch(e){toast('Almacenamiento local no disponible: los datos no se conservarán')}
  chip();show('home')})();
-</script></body></html>
+</script>
+
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    async function cargarReportesDesdeSupabase() {
+      if (!window.supabaseClient) return;
+      
+      const { data, error } = await window.supabaseClient
+        .from('reportes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error cargando reportes:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        U.files = data.map(r => ({
+          id: r.id,
+          nombre: r.nombre || r.titulo || 'Informe',
+          jugador: r.jugador || '-',
+          partido: r.partido || '-',
+          fecha: r.fecha || r.created_at?.slice(0, 10),
+          tipo: r.tipo || 'PDF',
+          url: r.url_archivo,
+          desc: r.descripcion || ''
+        }));
+
+        if (typeof renderReportes === 'function') {
+          renderReportes();
+        }
+      }
+    }
+
+    document.addEventListener('click', (e) => {
+      const navA = e.target.closest('a[data-v]');
+      if (navA && navA.getAttribute('data-v') === 'rep') {
+        cargarReportesDesdeSupabase();
+      }
+    });
+
+    cargarReportesDesdeSupabase();
+
+    document.addEventListener('submit', async (e) => {
+      const form = e.target;
+      if (!form) return;
+
+      const fileInput = form.querySelector('input[type="file"]') || document.querySelector('#modal input[type="file"]');
+      if (!fileInput || !fileInput.files.length) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const file = fileInput.files[0];
+      const nameClean = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      const filePath = `${Date.now()}_${nameClean}`;
+
+      const { data: storageData, error: storageError } = await window.supabaseClient
+        .storage
+        .from('scoutpro-files')
+        .upload(filePath, file);
+
+      if (storageError) {
+        alert('Error al subir el archivo a la nube: ' + storageError.message);
+        return;
+      }
+
+      const { data: urlData } = window.supabaseClient
+        .storage
+        .from('scoutpro-files')
+        .getPublicUrl(filePath);
+
+      const publicUrl = urlData.publicUrl;
+
+      const jugadorSel = form.querySelector('select[name="jugador"], #selP, select')?.value || S.cur || 'Desconocido';
+      const descVal = form.querySelector('textarea, input[name="desc"]')?.value || '';
+      const fechaVal = form.querySelector('input[type="date"]')?.value || new Date().toISOString().slice(0, 10);
+
+      const { error: dbError } = await window.supabaseClient
+        .from('reportes')
+        .insert([{
+          nombre: file.name,
+          jugador: jugadorSel,
+          fecha: fechaVal,
+          tipo: file.name.split('.').pop().toUpperCase(),
+          url_archivo: publicUrl,
+          descripcion: descVal
+        }]);
+
+      if (dbError) {
+        alert('Error al guardar el reporte en la base de datos: ' + dbError.message);
+        return;
+      }
+
+      alert('¡Reporte subido y guardado exitosamente en la nube!');
+
+      const modal = document.querySelector('#modal');
+      if (modal) modal.classList.remove('on');
+
+      cargarReportesDesdeSupabase();
+    }, true);
+  });
+</script>
+
+</body></html>
