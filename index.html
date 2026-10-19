@@ -3,6 +3,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+ <script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
+  const supabaseUrl = 'https://openkbczjvpmszrkaw.supabase.co'
+  const supabaseKey = 'sb_publishable_7q32tHjz0s7RzxgerbpWzg_02CUgNRz'
+
+  window.supabaseClient = createClient(supabaseUrl, supabaseKey)
+</script>
 <style>
 /* ================= INTERFAZ: ESTILOS ================= */
 :root{--bg:#0a111f;--side:#0c1626;--pn:#0f1c31;--pn2:#13233b;--bd:#1c2e4a;--gr:#22c55e;--gr2:#16a34a;--am:#f59e0b;--rd:#ef4444;--tx:#e6edf7;--mu:#8da0bd;box-sizing:border-box}
