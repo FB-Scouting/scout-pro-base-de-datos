@@ -687,7 +687,7 @@ async function clColl(k,cl,touched){const loc=clLocal(k),B=CL.base[k]||(CL.base[
    else if(hc===L.h)B[id]={v:C.version,h:hc};else cf('ambos')
   }catch(e){if(e.net||e.login)throw e;CL.conf.push({k,id,kind:'error',msg:e.message,L,C})}}}
 async function clMother(){const r=await(await clFetch('/rest/v1/scoutpro_mother?select=file_name,uploaded_at,version,data&limit=1')).json(),cm=r[0],bm=CL.base.mother;
- const push=async()=>{const rr=await clFetch('/rest/v1/scoutpro_mother?on_conflict=user_id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},json:{file_name:META&&META.file||null,data:{db:DB,meta:META}}});const row=(await rr.json())[0];CL.base.mother={at:row.uploaded_at,when:META.when};CL.motherNew=false};
+ const push=async()=>{const rr=await clFetch('/rest/v1/scoutpro_mother?on_conflict=user_id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},json:{user_id:CL.sess.uid,file_name:META&&META.file||null,data:{db:DB,meta:META}}});const row=(await rr.json())[0];CL.base.mother={at:row.uploaded_at,when:META.when};CL.motherNew=false};
  if(!cm){if(DB)await push();return}
  if(!DB){await saveMotherBase(cm.data.db,cm.data.meta);applyMother(cm.data.db,cm.data.meta);CL.base.mother={at:cm.uploaded_at,when:cm.data.meta.when};CL.motherNew=false;return}
  if(bm&&cm.uploaded_at===bm.at){if(META.when!==bm.when)await push();CL.motherNew=false;return}
