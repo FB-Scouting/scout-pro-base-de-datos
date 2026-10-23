@@ -124,7 +124,7 @@ body.pb #bpr{display:block;font:12px/1.4 Arial,sans-serif;color:#000;background:
 <script>
 /* ================= DATOS: fuente única (reemplazable por Excel/Sheets/API) ================= */
 let DB=null,META=null;
-const U={matches:[],informes:[],files:[],photos:{},rec:{},market:{},searches:[],mkrev:{},brutos:[],agenda:[]};
+const U={matches:[],informes:[],files:[],photos:{},rec:{},market:{},searches:[],mkrev:{},brutos:[],agenda:[],ineto:[],igen:[]};
 /* ================= STORAGE: IndexedDB local (solo este navegador). Futuro: reemplazar Store por API / base online ================= */
 const Store={db:null,open(){return new Promise((res,rej)=>{const r=indexedDB.open('scoutpro',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>{this.db=r.result;res()};r.onerror=()=>rej(r.error)})},
  get(k){return new Promise(res=>{try{const q=this.db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(undefined)}catch(e){res(undefined)}})},
@@ -643,7 +643,7 @@ const CLOUD={
   url:'https://iuufnafevroywwbcafgp.supabase.co',
   key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dWZuYWZldnJveXd3YmNhZmdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNTU0NDUsImV4cCI6MjEwNzYzMTQ0NX0.mO6lMo3YLQfCZrPMMntXjGvbLTtGh2GSdMDZH2T8eMA'
 };
-const CL_ARR=['matches','informes','brutos','agenda','searches','files'],CL_MAP=['rec','market','mkrev','photos'],CL_ALL=CL_ARR.concat(CL_MAP);
+const CL_ARR=['matches','informes','brutos','agenda','searches','files','ineto','igen'],CL_MAP=['rec','market','mkrev','photos'],CL_ALL=CL_ARR.concat(CL_MAP);
 const CL={cfg:null,sess:null,st:'none',last:null,err:'',conf:[],busy:false,again:false,base:{},timer:null,motherNew:false};
 const canon=o=>o===null||typeof o!=='object'?JSON.stringify(o):Array.isArray(o)?'['+o.map(canon).join(',')+']':'{'+Object.keys(o).filter(k=>o[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+canon(o[k])).join(',')+'}';
 const hsh=s=>{let a=5381,b=2166136261;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);a=((a<<5)+a+c)|0;b=Math.imul(b^c,16777619)}return(a>>>0).toString(36)+(b>>>0).toString(36)+s.length};
@@ -651,8 +651,8 @@ const encId=(k,id)=>CL_MAP.includes(k)?'u:'+encodeURIComponent(id):String(id),de
 const cloudOn=()=>!!(CL.cfg&&CL.cfg.url&&CL.cfg.key),cloudReady=()=>cloudOn()&&!!CL.sess;
 const cloudNote=()=>cloudReady()?' · se está subiendo a la nube…':' (nube: no activada)';
 const cloudInfo=()=>cloudReady()?'Se guarda en este navegador y se sincroniza con tu cuenta en la nube (mirá el estado arriba).':'Se guarda solo en este navegador. La sincronización en la nube todavía no está activada.';
-const CL_COLL={matches:'Partidos',informes:'Informes',brutos:'Informes brutos',agenda:'Agenda',searches:'Búsquedas',files:'Reportes',rec:'Recomendación',market:'Mercado',mkrev:'Revisión de mercado',photos:'Fotos'};
-function clTitle(k,d){if(!d)return'';try{if(k==='informes'||k==='brutos')return(d.jugador||'')+' · '+fdate(d.fecha);if(k==='agenda')return agTitle(d)+' · '+fdate(d.fecha);if(k==='matches')return matchLabel(d);if(k==='searches'||k==='files')return d.name;return''}catch(e){return''}}
+const CL_COLL={matches:'Partidos',informes:'Informes',brutos:'Informes brutos',ineto:'Informes netos',igen:'Generador automático',agenda:'Agenda',searches:'Búsquedas',files:'Reportes',rec:'Recomendación',market:'Mercado',mkrev:'Revisión de mercado',photos:'Fotos'};
+function clTitle(k,d){if(!d)return'';try{if(k==='ineto'||k==='igen')return(d.jugador||d.titulo||'Informe')+' · '+fdate(d.fecha);if(k==='informes'||k==='brutos')return(d.jugador||'')+' · '+fdate(d.fecha);if(k==='agenda')return agTitle(d)+' · '+fdate(d.fecha);if(k==='matches')return matchLabel(d);if(k==='searches'||k==='files')return d.name;return''}catch(e){return''}}
 function clLocal(k){const m=new Map();if(CL_ARR.includes(k))U[k].forEach(r=>{const d=k==='files'?{...r,data:undefined}:r;m.set(String(r.id),{d,h:hsh(canon(d))})});else Object.keys(U[k]).forEach(id=>{const d={v:U[k][id]};m.set(id,{d,h:hsh(canon(d))})});return m}
 function clPending(){let n=0;CL_ALL.forEach(k=>{const loc=clLocal(k),B=CL.base[k]||{};loc.forEach((L,id)=>{if(!B[id]||B[id].h!==L.h)n++});Object.keys(B).forEach(id=>{if(!loc.has(id))n++})});return n}
 function clSet(s){CL.st=s;const c=$('#clChip');if(!c)return;const hm=CL.last?CL.last.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'',p=cloudReady()?clPending():0;
@@ -700,7 +700,7 @@ async function clSync(){if(CL.busy){CL.again=true;return}if(!cloudReady())return
  try{await clAuth();const rows=await clPull(),byK={};rows.forEach(r=>{(byK[r.coleccion]=byK[r.coleccion]||new Map()).set(decId(r.coleccion,r.id),r)});CL.conf=[];
   for(const k of CL_ALL)await clColl(k,byK[k]||new Map(),touched);await clMother();CL.last=new Date();st=CL.conf.length?'conf':'ok'}
  catch(e){CL.err=e.message;st=e.login?'login':e.net?'off':'err'}
- finally{try{for(const k of touched)await Store.set(k,U[k]);await Store.set('syncbase',CL.base)}catch(e){}CL.busy=false;clSet(st);if(touched.size)clRefreshUI();if(CL.again){CL.again=false;clSchedule()}}}
+ finally{try{for(const k of touched)await Store.set(k,U[k]);await Store.set('syncbase',CL.base)}catch(e){}CL.busy=false;clSet(st);if(touched.size)clRefreshUI();['ineto','igen'].forEach(k=>{const f=$('#xf_'+k);if(f&&f.contentWindow)try{f.contentWindow.postMessage({type:'scoutpro-report:refresh',module:k},'https://fb-scouting.github.io')}catch(e){}});if(CL.again){CL.again=false;clSchedule()}}}
 function clSchedule(){if(!cloudReady()){return}clSet(CL.st);if(!CL.base.init)return;clearTimeout(CL.timer);CL.timer=setTimeout(()=>clSync(),1500)}
 const clToastResult=()=>toast(CL.st==='ok'?'Sincronizado con la nube ✓':CL.st==='conf'?'Sincronizado, con conflictos para revisar':'No se pudo sincronizar: '+CL.err);
 async function clSyncManual(){if(!cloudReady())return clModal();
@@ -730,6 +730,46 @@ function clModal(){const on=cloudOn(),lg=cloudReady();let h='<h2>Nube · sincron
  const sy=$('#cl_sy');if(sy)sy.onclick=()=>T(clSyncManual);const lo=$('#cl_lo');if(lo)lo.onclick=()=>T(async()=>{try{await clFetch('/auth/v1/logout',{method:'POST',timeout:5000})}catch(e){}CL.sess=null;await Store.set('cloudsess',null);clSet('login');clModal();toast('Sesión cerrada. Tus datos locales siguen acá.')});
  const um=$('#cl_um');if(um)um.onclick=()=>T(async()=>{await clUseCloudMother();toast('Base madre de la nube cargada');closeM()});
  document.querySelectorAll('[data-cr]').forEach(b=>b.onclick=()=>T(async()=>{await clResolve(+b.dataset.cr,b.dataset.c);clModal()}))}
+/* Puente seguro para guardar informes generados en los iframe, usando la sesión y sincronización ya existentes. */
+const REPORT_ORIGINS={ineto:'https://fb-scouting.github.io',igen:'https://fb-scouting.github.io'};
+window.addEventListener('message',async ev=>{
+ const frameMap={ineto:$('#xf_ineto'),igen:$('#xf_igen')};
+ let k=null;
+ for(const key of Object.keys(frameMap)){const f=frameMap[key];if(f&&ev.source===f.contentWindow&&ev.origin===REPORT_ORIGINS[key]){k=key;break}}
+ if(!k||!ev.data||typeof ev.data!=='object'||!String(ev.data.type||'').startsWith('scoutpro-report:'))return;
+ const reply=(data)=>{try{ev.source.postMessage(data,ev.origin)}catch(e){}};
+ try{
+  if(ev.data.type==='scoutpro-report:list'){
+   reply({type:'scoutpro-report:list-result',requestId:ev.data.requestId,module:k,records:U[k].map(r=>({id:r.id,fecha:r.fecha||'',jugador:r.jugador||'',titulo:r.titulo||'',updatedAt:r.updatedAt||''}))});
+  }else if(ev.data.type==='scoutpro-report:load'){
+   const rec=U[k].find(r=>r.id===String(ev.data.id));
+   reply({type:'scoutpro-report:load-result',requestId:ev.data.requestId,module:k,record:rec||null});
+  }else if(ev.data.type==='scoutpro-report:save'){
+   if(!cloudReady())throw new Error('Iniciá sesión en la nube de SCOUTPRO antes de guardar.');
+   if(!CL.base.init)throw new Error('Antes de guardar informes, completá la primera sincronización desde el botón Nube de SCOUTPRO.');
+   const p=ev.data.record;
+   if(!p||typeof p!=='object'||!p.payload||typeof p.payload!=='object')throw new Error('El contenido del informe no es válido.');
+   const id=String(p.id||uuid()),now=new Date().toISOString();
+   const rec={id,fecha:String(p.fecha||now.slice(0,10)),jugador:String(p.jugador||''),titulo:String(p.titulo||p.jugador||'Informe'),updatedAt:now,payload:p.payload};
+   const i=U[k].findIndex(x=>String(x.id)===id),previous=i>=0?U[k][i]:null;
+   if(i>=0)U[k][i]=rec;else U[k].push(rec);
+   const ok=await saveU(k);
+   if(!ok){if(i>=0)U[k][i]=previous;else U[k]=U[k].filter(x=>x!==rec);throw new Error('No se pudo guardar el informe localmente.')}
+   const deadline=Date.now()+30000;
+   while(CL.busy&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,100));
+   if(CL.busy)throw new Error('El informe quedó guardado en este navegador, pero la sincronización sigue ocupada. Revisá el estado de la nube e intentá sincronizar de nuevo.');
+   await clSync();
+   const local=clLocal(k).get(id),cloud=CL.base[k]&&CL.base[k][id];
+   if(!local||!cloud||cloud.h!==local.h)throw new Error('El informe quedó guardado en este navegador, pero SCOUTPRO no confirmó su guardado en la nube. Revisá el estado de la nube antes de cerrar.');
+   reply({type:'scoutpro-report:save-result',requestId:ev.data.requestId,module:k,ok:true,record:{id:rec.id,fecha:rec.fecha,jugador:rec.jugador,titulo:rec.titulo,updatedAt:rec.updatedAt}});
+  }else if(ev.data.type==='scoutpro-report:delete'){
+   if(!cloudReady())throw new Error('Iniciá sesión en la nube de SCOUTPRO antes de eliminar.');
+   const i=U[k].findIndex(x=>String(x.id)===String(ev.data.id));
+   if(i>=0){const removed=U[k].splice(i,1)[0];const ok=await saveU(k);if(!ok){U[k].splice(i,0,removed);throw new Error('No se pudo guardar el cambio.')}}
+   reply({type:'scoutpro-report:delete-result',requestId:ev.data.requestId,module:k,ok:true});
+  }
+ }catch(err){reply({type:'scoutpro-report:error',requestId:ev.data.requestId,module:k,error:err.message||'Error al procesar el informe'})}
+});
 async function clInit(){CL.cfg=(CLOUD.url&&CLOUD.key)?{url:CLOUD.url,key:CLOUD.key}:await Store.get('cloudcfg');CL.sess=await Store.get('cloudsess');CL.base=(await Store.get('syncbase'))||{};const ch=$('#clChip');if(ch)ch.onclick=clModal;
  if(!cloudOn()){clSet('none');return}if(!CL.sess){clSet('login');return}if(!CL.base.init){clSet('first');return}clSync()}
 window.addEventListener('online',()=>clSchedule());document.addEventListener('visibilitychange',()=>{if(!document.hidden&&cloudReady()&&CL.base.init)setTimeout(clSync,400)});setInterval(()=>{if(!document.hidden&&cloudReady()&&CL.base.init&&!CL.busy)clSync()},60000);
@@ -739,7 +779,7 @@ document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>{if(a.dataset.v==='i
 $('#sync').onclick=()=>toast('Conexión con Google Sheets pendiente de configuración');
 $('#xl').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)loadExcelMotherBase(f)};
 $('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')};
-(async()=>{try{await Store.open();for(const k of ['matches','informes','files'])U[k]=(await Store.get(k))||[];U.photos=(await Store.get('photos'))||{};U.market=(await Store.get('market'))||{};U.searches=(await Store.get('searches'))||[];U.mkrev=(await Store.get('mkrev'))||{};U.brutos=(await Store.get('brutos'))||[];U.agenda=(await Store.get('agenda'))||[];U.rec=(await Store.get('rec'))||{};S.rec=U.rec;
+(async()=>{try{await Store.open();for(const k of ['matches','informes','files','ineto','igen'])U[k]=(await Store.get(k))||[];U.photos=(await Store.get('photos'))||{};U.market=(await Store.get('market'))||{};U.searches=(await Store.get('searches'))||[];U.mkrev=(await Store.get('mkrev'))||{};U.brutos=(await Store.get('brutos'))||[];U.agenda=(await Store.get('agenda'))||[];U.rec=(await Store.get('rec'))||{};S.rec=U.rec;
  const m=await Store.get('mother');if(m&&m.db){applyMother(m.db,m.meta);clInit();return}}catch(e){toast('Almacenamiento local no disponible: los datos no se conservarán')}
  chip();show('home');clInit()})();
 </script></body></html>
