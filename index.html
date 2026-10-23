@@ -700,7 +700,7 @@ async function clSync(){if(CL.busy){CL.again=true;return}if(!cloudReady())return
  try{await clAuth();const rows=await clPull(),byK={};rows.forEach(r=>{(byK[r.coleccion]=byK[r.coleccion]||new Map()).set(decId(r.coleccion,r.id),r)});CL.conf=[];
   for(const k of CL_ALL)await clColl(k,byK[k]||new Map(),touched);await clMother();CL.last=new Date();st=CL.conf.length?'conf':'ok'}
  catch(e){CL.err=e.message;st=e.login?'login':e.net?'off':'err'}
- finally{try{for(const k of touched)await Store.set(k,U[k]);await Store.set('syncbase',CL.base)}catch(e){}CL.busy=false;clSet(st);if(touched.size)clRefreshUI();if(CL.again){CL.again=false;clSchedule()}}}
+ finally{try{for(const k of touched)await Store.set(k,U[k]);await Store.set('syncbase',CL.base)}catch(e){}CL.busy=false;clSet(st);if(touched.size)clRefreshUI();['ineto','igen'].forEach(k=>{const f=$('#xf_'+k);if(f&&f.contentWindow)try{f.contentWindow.postMessage({type:'scoutpro-report:refresh',module:k},'https://fb-scouting.github.io')}catch(e){}});if(CL.again){CL.again=false;clSchedule()}}}
 function clSchedule(){if(!cloudReady()){return}clSet(CL.st);if(!CL.base.init)return;clearTimeout(CL.timer);CL.timer=setTimeout(()=>clSync(),1500)}
 const clToastResult=()=>toast(CL.st==='ok'?'Sincronizado con la nube ✓':CL.st==='conf'?'Sincronizado, con conflictos para revisar':'No se pudo sincronizar: '+CL.err);
 async function clSyncManual(){if(!cloudReady())return clModal();
@@ -750,10 +750,10 @@ window.addEventListener('message',async ev=>{
    if(!p||typeof p!=='object'||!p.payload||typeof p.payload!=='object')throw new Error('El contenido del informe no es válido.');
    const id=String(p.id||uuid()),now=new Date().toISOString();
    const rec={id,fecha:String(p.fecha||now.slice(0,10)),jugador:String(p.jugador||''),titulo:String(p.titulo||p.jugador||'Informe'),updatedAt:now,payload:p.payload};
-   const i=U[k].findIndex(x=>String(x.id)===id);
+   const i=U[k].findIndex(x=>String(x.id)===id),previous=i>=0?U[k][i]:null;
    if(i>=0)U[k][i]=rec;else U[k].push(rec);
    const ok=await saveU(k);
-   if(!ok){if(i>=0)U[k].splice(i,1);else U[k]=U[k].filter(x=>x!==rec);throw new Error('No se pudo guardar el informe localmente.')}
+   if(!ok){if(i>=0)U[k][i]=previous;else U[k]=U[k].filter(x=>x!==rec);throw new Error('No se pudo guardar el informe localmente.')}
    reply({type:'scoutpro-report:save-result',requestId:ev.data.requestId,module:k,ok:true,record:{id:rec.id,fecha:rec.fecha,jugador:rec.jugador,titulo:rec.titulo,updatedAt:rec.updatedAt}});
   }else if(ev.data.type==='scoutpro-report:delete'){
    if(!cloudReady())throw new Error('Iniciá sesión en la nube de SCOUTPRO antes de eliminar.');
