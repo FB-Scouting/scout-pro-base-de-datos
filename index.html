@@ -746,6 +746,7 @@ window.addEventListener('message',async ev=>{
    reply({type:'scoutpro-report:load-result',requestId:ev.data.requestId,module:k,record:rec||null});
   }else if(ev.data.type==='scoutpro-report:save'){
    if(!cloudReady())throw new Error('Iniciá sesión en la nube de SCOUTPRO antes de guardar.');
+   if(!CL.base.init)throw new Error('Antes de guardar informes, completá la primera sincronización desde el botón Nube de SCOUTPRO.');
    const p=ev.data.record;
    if(!p||typeof p!=='object'||!p.payload||typeof p.payload!=='object')throw new Error('El contenido del informe no es válido.');
    const id=String(p.id||uuid()),now=new Date().toISOString();
@@ -754,6 +755,12 @@ window.addEventListener('message',async ev=>{
    if(i>=0)U[k][i]=rec;else U[k].push(rec);
    const ok=await saveU(k);
    if(!ok){if(i>=0)U[k][i]=previous;else U[k]=U[k].filter(x=>x!==rec);throw new Error('No se pudo guardar el informe localmente.')}
+   const deadline=Date.now()+30000;
+   while(CL.busy&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,100));
+   if(CL.busy)throw new Error('El informe quedó guardado en este navegador, pero la sincronización sigue ocupada. Revisá el estado de la nube e intentá sincronizar de nuevo.');
+   await clSync();
+   const local=clLocal(k).get(id),cloud=CL.base[k]&&CL.base[k][id];
+   if(CL.st!=='ok'||!local||!cloud||cloud.h!==local.h)throw new Error('El informe quedó guardado en este navegador, pero SCOUTPRO no confirmó su guardado en la nube. Revisá el estado de la nube antes de cerrar.');
    reply({type:'scoutpro-report:save-result',requestId:ev.data.requestId,module:k,ok:true,record:{id:rec.id,fecha:rec.fecha,jugador:rec.jugador,titulo:rec.titulo,updatedAt:rec.updatedAt}});
   }else if(ev.data.type==='scoutpro-report:delete'){
    if(!cloudReady())throw new Error('Iniciá sesión en la nube de SCOUTPRO antes de eliminar.');
