@@ -760,7 +760,7 @@ window.addEventListener('message',async ev=>{
    if(CL.busy)throw new Error('El informe quedó guardado en este navegador, pero la sincronización sigue ocupada. Revisá el estado de la nube e intentá sincronizar de nuevo.');
    await clSync();
    const local=clLocal(k).get(id),cloud=CL.base[k]&&CL.base[k][id];
-   if(CL.st!=='ok'||!local||!cloud||cloud.h!==local.h)throw new Error('El informe quedó guardado en este navegador, pero SCOUTPRO no confirmó su guardado en la nube. Revisá el estado de la nube antes de cerrar.');
+   if(!local||!cloud||cloud.h!==local.h)throw new Error('El informe quedó guardado en este navegador, pero SCOUTPRO no confirmó su guardado en la nube. Revisá el estado de la nube antes de cerrar.');
    reply({type:'scoutpro-report:save-result',requestId:ev.data.requestId,module:k,ok:true,record:{id:rec.id,fecha:rec.fecha,jugador:rec.jugador,titulo:rec.titulo,updatedAt:rec.updatedAt}});
   }else if(ev.data.type==='scoutpro-report:delete'){
    if(!cloudReady())throw new Error('Iniciá sesión en la nube de SCOUTPRO antes de eliminar.');
