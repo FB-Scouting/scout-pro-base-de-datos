@@ -223,9 +223,9 @@ const ch={};function mk(id,cfg){if(ch[id])ch[id].destroy();ch[id]=new Chart(docu
 const gridC='#1c2e4a',tk={color:'#8da0bd'};
 const sh=(s,n=0)=>(s||'').toString().split(' ').map(w=>w[n]||'').join('');
 function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',3200)}
-function show(v){const nav=v;v=({jugadores:'inicio',rep:'reportes'})[v]||v;S.view=v;updateBadge();if(INF[v]||v==='ibruto')S.sub=true;syncSub();const views={home:renderHome,inicio:renderInicio,total:renderTotal,comparador:renderCmp,partidos:renderPartidos,ligas:renderLigas,bd:renderBD,informes:renderInformes,reportes:renderReportes,buscador:renderBuscador,oport:renderOport,ibruto:renderBruto,ineto:()=>renderExt('ineto'),igen:()=>renderExt('igen')};
+function show(v){const nav=v;v=({jugadores:'inicio',rep:'reportes'})[v]||v;S.view=v;updateBadge();if(INF[v]||v==='ibruto')S.sub=true;syncSub();const views={home:renderHome,inicio:renderInicio,total:renderTotal,comparador:renderCmp,partidos:renderPartidos,ligas:renderLigas,bd:renderBD,informes:renderInformes,reportes:renderReportes,buscador:renderBuscador,oport:renderOport,ibruto:renderBruto,ineto:()=>renderExt('ineto'),igen:()=>renderExt('igen'),scoutai:()=>{}};
  document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===nav||(nav==='inicio'&&a.dataset.v==='jugadores')));
- const gate=!DB&&v!=='bd'&&!INF[v],id=gate||!views[v]?'soon':v;$('#v-'+id).classList.add('on');
+ const gate=!DB&&v!=='bd'&&v!=='scoutai'&&!INF[v],id=gate||!views[v]?'soon':v;$('#v-'+id).classList.add('on');
  if(id==='soon'){$('#soonT').textContent=gate?'Base madre no cargada':'Sin datos';$('#soonB').innerHTML=gate?'Cargá tu Excel madre para armar jugadores, estadísticas y seguimiento.<p><button class="btn" onclick="pickExcel()">📁 Cargar Excel</button></p>':'Esta sección no tiene datos en la base madre.'}else views[v]()}
 function openPlayer(n){S.cur=n;$('#selP').value=n;show('inicio')}
 function pTag(p){const m={'📈 PROGRESO':['','↗ PROGRESO'],'✅ RENDIDOR':['','✔ RENDIDOR'],'📊 ESTANCO':['am','≈ ESTANCO'],'⚠️ BAJO RENDIMIENTO':['rd','▼ BAJO RENDIMIENTO']}[p];return m?`<span class="tag ${m[0]}">${m[1]}</span>`:'<span class="tag gy">Sin estado</span>'}
