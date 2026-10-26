@@ -781,7 +781,7 @@ $('#sync').onclick=()=>toast('Conexión con Google Sheets pendiente de configura
 $('#xl').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)loadExcelMotherBase(f)};
 $('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')};
 (async()=>{try{await Store.open();for(const k of ['matches','informes','files','ineto','igen'])U[k]=(await Store.get(k))||[];U.photos=(await Store.get('photos'))||{};U.market=(await Store.get('market'))||{};U.searches=(await Store.get('searches'))||[];U.mkrev=(await Store.get('mkrev'))||{};U.brutos=(await Store.get('brutos'))||[];U.agenda=(await Store.get('agenda'))||[];U.rec=(await Store.get('rec'))||{};S.rec=U.rec;
- const m=await Store.get('mother');if(m&&m.db){applyMother(m.db,m.meta);clInit();return}}catch(e){toast('Almacenamiento local no disponible: los datos no se conservarán')}
+ const m=await Store.get('mother');if(m&&m.db){applyMother(m.db,m.meta)}}catch(e){toast('Almacenamiento local no disponible: los datos no se conservarán')}
  chip();show('home');clInit()})();
 
 // SCOUTPRO IA: módulo aislado, solo consulta/borradores; no escribe en la base.
