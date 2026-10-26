@@ -91,7 +91,8 @@ body.pb #bpr{display:block;font:12px/1.4 Arial,sans-serif;color:#000;background:
 <a data-v="rep"><i>▥</i><span>Reportes</span></a></nav>
 <main>
 <section class="view" id="v-home"><div class="hm" id="hm"></div></section>
-<section class="view" id="v-scoutai"><div class="card" st
+
+<section class="view" id="v-inicio"><div class="grid">
 <div class="card" style="grid-column:1/9"><div class="ficha" id="ficha"></div></div>
 <div class="card" style="grid-column:9/13"><h2>Estado de progreso y evolución</h2><div id="evTag"></div><div style="height:170px"><canvas id="cEv"></canvas></div></div>
 <div class="card" style="grid-column:1/6"><h2>Encaje en sistemas tácticos</h2><div class="mu" style="margin-bottom:8px;font-size:12px">Perfil ideal según posición y estadísticas · <span id="fitNote"></span></div><div class="fit"><svg class="pitch" id="pitch" viewBox="0 0 100 140"></svg><div id="fitList"></div></div></div>
@@ -780,7 +781,7 @@ $('#sync').onclick=()=>toast('Conexión con Google Sheets pendiente de configura
 $('#xl').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)loadExcelMotherBase(f)};
 $('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')};
 (async()=>{try{await Store.open();for(const k of ['matches','informes','files','ineto','igen'])U[k]=(await Store.get(k))||[];U.photos=(await Store.get('photos'))||{};U.market=(await Store.get('market'))||{};U.searches=(await Store.get('searches'))||[];U.mkrev=(await Store.get('mkrev'))||{};U.brutos=(await Store.get('brutos'))||[];U.agenda=(await Store.get('agenda'))||[];U.rec=(await Store.get('rec'))||{};S.rec=U.rec;
- const m=await Store.get('mother');if(m&&m.db){applyMother(m.db,m.meta)}}catch(e){toast('Almacenamiento local no disponible: los datos no se conservarán')}
+ const m=await Store.get('mother');if(m&&m.db){applyMother(m.db,m.meta);clInit();return}}catch(e){toast('Almacenamiento local no disponible: los datos no se conservarán')}
  chip();show('home');clInit()})();
 
 </script></body></html>
