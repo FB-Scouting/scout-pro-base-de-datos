@@ -826,7 +826,20 @@ $('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')
         if(qTerms.length){const matched=source.filter(p=>qTerms.some(t=>JSON.stringify([p.n,p.club,p.pos,p.rep]).toLocaleLowerCase("es").includes(t)));if(matched.length)source=matched}
         players=source.slice(0,35).map(p=>({jugador:p.n,club:p.club,posicion:p.pos,edad:p.ed,contrato_hasta:p.fc,valor_mercado:p.vm,estadisticas:compact(DB.st&&DB.st[p.n]||{})}));
        }
-       const payload={fuente:"SCOUTPRO: registros de las secciones cargadas en esta sesión",secciones:sections,base_madre:{total_jugadores:DB&&Array.isArray(DB.players)?DB.players.length:0,jugadores:players},instruccion:"Usa tanto secciones como base_madre. No supongas que base_madre es la única fuente. Cada clave de secciones corresponde a un módulo de SCOUTPRO."};
+       const marketPlayers=[];
+        if(typeof DB!=="undefined"&&DB&&Array.isArray(DB.players)){
+         for(const p of DB.players){
+          const m=(typeof U!=="undefined"&&U&&U.market)?U.market[p.n]:null;
+          const state=m&&m.estado?m.estado:"";
+          let suggestion=null;
+          try{if(typeof mkState==="function")suggestion=mkState(p.n)}catch(_){}
+          if(state==="posible"||(suggestion&&suggestion.estado==="posible")){
+           marketPlayers.push({jugador:p.n,club:p.club,posicion:p.pos,edad:p.ed,estado_registrado:state||"sin_registro",motivo_registrado:m&&m.motivo||"",fuente:m&&m.fuente||"",fecha_actualizacion:m&&(m.fecha||m.actualizado||m.fechaActualizacion)||"",sugerencia_automatica:suggestion?compact(suggestion):null,contrato_hasta:p.fc,valor_mercado:p.vm});
+          }
+         }
+        }
+        sections.oportunidades_mercado_posible=marketPlayers;
+        const payload={fuente:"SCOUTPRO: registros de las secciones cargadas en esta sesión",secciones:sections,base_madre:{total_jugadores:DB&&Array.isArray(DB.players)?DB.players.length:0,jugadores:players},instruccion:"Usa tanto secciones como base_madre y oportunidades_mercado_posible. Para consultas de posible salida, enumera los jugadores de oportunidades_mercado_posible con club y motivo disponible; diferencia estado registrado de sugerencia automática. No respondas solo con un total. No inventes motivos ni nombres."};
        let out=JSON.stringify(payload);
        if(out.length>27000){
         for(const k of Object.keys(sections))if(Array.isArray(sections[k]))sections[k]=sections[k].slice(-3);
