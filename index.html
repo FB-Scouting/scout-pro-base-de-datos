@@ -802,14 +802,47 @@ $('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')
     try{
      const ctx=(()=>{
       try{
-       const clean=(v)=>{if(Array.isArray(v))return v.slice(-15).map(clean);if(v&&typeof v==="object"){const o={};for(const [k,x] of Object.entries(v)){if(/^(data|blob|fileData|base64|photo|image)$/i.test(k))continue;o[k]=clean(x)}return o}return v};
-       const sections={};if(typeof U!=="undefined"&&U)for(const [k,v] of Object.entries(U)){if(k==="photos"||k==="files")continue;sections[k]=clean(v)}
-       let players=[];if(typeof DB!=="undefined"&&DB&&Array.isArray(DB.players))players=DB.players.slice(0,100).map(p=>({jugador:p.n,club:p.club,posicion:p.pos,edad:p.ed,contrato_hasta:p.fc,valor_mercado:p.vm,estadisticas:DB.st&&DB.st[p.n]||{}}));
-       const payload={fuente:"SCOUTPRO, datos cargados en esta sesión",secciones:sections,base_madre:{total_jugadores:DB&&Array.isArray(DB.players)?DB.players.length:0,jugadores:players}};
+       const qTerms=q.toLocaleLowerCase("es").split(/[^\\p{L}\\p{N}]+/u).filter(w=>w.length>3);
+       const compact=(v,depth=0)=>{
+        if(v===null||v===undefined||typeof v==="number"||typeof v==="boolean")return v;
+        if(typeof v==="string")return v.length>350?v.slice(0,350)+"…":v;
+        if(depth>4)return "[contenido anidado omitido]";
+        if(Array.isArray(v))return v.slice(-8).map(x=>compact(x,depth+1));
+        if(typeof v==="object"){const o={};for(const [k,x] of Object.entries(v)){if(/^(data|blob|fileData|base64|photo|image|thumbnail)$/i.test(k))continue;o[k]=compact(x,depth+1);if(Object.keys(o).length>=24)break;}return o}
+        return String(v).slice(0,100);
+       };
+       const sections={};
+       if(typeof U!=="undefined"&&U)for(const [k,v] of Object.entries(U)){
+        if(k==="photos"||k==="files")continue;
+        if(Array.isArray(v)){
+         let rows=v;
+         if(qTerms.length){const matched=v.filter(row=>{const hay=JSON.stringify(row).toLocaleLowerCase("es");return qTerms.some(t=>hay.includes(t))});if(matched.length)rows=matched}
+         sections[k]=rows.slice(-8).map(x=>compact(x));
+        }else sections[k]=compact(v);
+       }
+       let players=[];
+       if(typeof DB!=="undefined"&&DB&&Array.isArray(DB.players)){
+        let source=DB.players;
+        if(qTerms.length){const matched=source.filter(p=>qTerms.some(t=>JSON.stringify([p.n,p.club,p.pos,p.rep]).toLocaleLowerCase("es").includes(t)));if(matched.length)source=matched}
+        players=source.slice(0,35).map(p=>({jugador:p.n,club:p.club,posicion:p.pos,edad:p.ed,contrato_hasta:p.fc,valor_mercado:p.vm,estadisticas:compact(DB.st&&DB.st[p.n]||{})}));
+       }
+       const payload={fuente:"SCOUTPRO: registros de las secciones cargadas en esta sesión",secciones:sections,base_madre:{total_jugadores:DB&&Array.isArray(DB.players)?DB.players.length:0,jugadores:players},instruccion:"Usa tanto secciones como base_madre. No supongas que base_madre es la única fuente. Cada clave de secciones corresponde a un módulo de SCOUTPRO."};
        let out=JSON.stringify(payload);
-       while(out.length>24000){for(const k of Object.keys(sections)){if(Array.isArray(sections[k]))sections[k]=sections[k].slice(-5);else if(sections[k]&&typeof sections[k]==="object")sections[k]={resumen:"Datos de esta sección omitidos por límite de contexto"}}players=players.slice(0,30);payload.base_madre.jugadores=players;out=JSON.stringify(payload);if(out.length>24000){payload.secciones={};}}
-       return out;
-      }catch(e){return JSON.stringify({aviso:"Contexto parcial",error:String(e).slice(0,100)})}
+       if(out.length>27000){
+        for(const k of Object.keys(sections))if(Array.isArray(sections[k]))sections[k]=sections[k].slice(-3);
+        payload.base_madre.jugadores=players.slice(0,15);
+        out=JSON.stringify(payload);
+       }
+       if(out.length>29500){
+        const reduced={fuente:payload.fuente,instruccion:payload.instruccion,secciones:{},base_madre:{total_jugadores:payload.base_madre.total_jugadores,jugadores:payload.base_madre.jugadores.slice(0,8)}};
+        for(const [k,v] of Object.entries(sections)){
+         const val=JSON.stringify(v);
+         reduced.secciones[k]=val.length>1800?val.slice(0,1800)+"…":v;
+        }
+        out=JSON.stringify(reduced);
+       }
+       return out.slice(0,29900);
+      }catch(e){return JSON.stringify({aviso:"No se pudo preparar todo el contexto de SCOUTPRO",error:String(e).slice(0,100)})}
      })();
      const response=await fetch("https://iuufnafevroywwbcafgp.supabase.co/functions/v1/scoutpro-ai",{method:"POST",headers:{"Content-Type":"application/json","apikey":CL.cfg.key,"Authorization":"Bearer "+CL.sess.access},body:JSON.stringify({query:q,context:ctx})});
      const data=await response.json().catch(()=>({}));
