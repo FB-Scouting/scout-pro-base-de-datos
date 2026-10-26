@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚽ Modelo de Matching | ScoutPro</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#05070f;
+  --panel:#0b1020;
+  --panel-glass:rgba(13,19,38,.72);
+  --line:rgba(255,255,255,.09);
+  --border-glow:rgba(120,140,255,.28);
+  --ink:#e8ecfb;
+  --ink-dim:#8891b3;
+  --violeta:#8b6bff;
+  --violeta-2:#5b4fe0;
+  --cian:#5dd6ff;
+  --verde:#34e0a1;
+  --ambar:#f2c14e;
+  --naranja:#ff9d5c;
+  --rojo:#ff5c7a;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:
+    radial-gradient(650px 450px at 12% 8%, rgba(139,107,255,.16), transparent 60%),
+    radial-gradient(700px 500px at 88% 85%, rgba(93,214,255,.10), transparent 60%),
+    var(--bg);
+  background-attachment:fixed;
+  color:var(--ink);
+  font-family:'Inter',sans-serif;
+  padding:24px;
+  min-height:100vh;
+  position:relative;
+  overflow-x:hidden;
+}
+body::before{
+  content:'';
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  opacity:.35;
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size:46px 46px;
+  mask-image:radial-gradient(circle at 30% 20%, black, transparent 75%);
+}
+.container { max-width:1500px; margin:0 auto; position:relative; z-index:1; }
+
+h1,h2,h3,h4 { font-family:'Space Grotesk',sans-serif; }
+
+.eyebrow { font-size:11px; letter-spacing:1.6px; color:var(--cian); font-weight:600; display:inline-flex; align-items:center; gap:8px; }
+.eyebrow::after { content:''; display:inline-block; width:26px; height:2px; background:linear-gradient(90deg,var(--cian),transparent); }
+
+.header-principal {
+  background: linear-gradient(160deg, rgba(139,107,255,.14), rgba(11,16,32,.5));
+  border:1px solid var(--border-glow);
+  border-radius:16px; padding:22px 26px; margin-bottom:22px;
+  display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;
+  backdrop-filter:blur(10px);
+}
+.header-principal h1 { font-size:24px; font-weight:700; color:var(--ink); margin-top:6px; }
+.header-principal p { color:var(--ink-dim); font-size:12.5px; margin-top:5px; }
+.badge-nuevo { background:rgba(52,224,161,.14); border:1px solid rgba(52,224,161,.5); color:var(--verde); font-size:10px; font-weight:700; padding:6px 12px; border-radius:20px; text-transform:uppercase; letter-spacing:.6px; }
+
+.panel {
+  background:var(--panel-glass);
+  border:1px solid var(--line);
+  border-radius:16px; padding:22px; margin-bottom:22px;
+  backdrop-filter:blur(10px);
+  position:relative;
+  box-shadow:0 20px 45px -30px rgba(0,0,0,.7);
+}
+.panel-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+.panel-header .eyebrow { margin-bottom:0; }
+.hex-icon { width:30px; height:30px; display:flex; align-items:center; justify-content:center; color:var(--ink-dim); border:1px solid var(--line); border-radius:9px; background:rgba(255,255,255,.02); }
+
+.modo-toggle { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.modo-toggle-3 { grid-template-columns:1fr 1fr 1fr; }
+.modo-btn {
+  background:rgba(5,8,18,.6); border:1px solid var(--line); border-radius:12px; padding:16px 18px;
+  color:var(--ink); font-size:14px; font-weight:600; font-family:'Space Grotesk',sans-serif; cursor:pointer;
+  text-align:left; transition:.2s;
+}
+.modo-btn small { display:block; color:var(--ink-dim); font-size:11px; font-weight:400; font-family:'Inter',sans-serif; margin-top:5px; }
+.modo-btn:hover { border-color:rgba(139,107,255,.4); }
+.modo-btn.activo { background:rgba(139,107,255,.12); border-color:rgba(139,107,255,.6); box-shadow:0 0 20px -8px rgba(139,107,255,.5); }
+@media (max-width:700px){ .modo-toggle { grid-template-columns:1fr; } .modo-toggle-3 { grid-template-columns:1fr; } }
+
+.fila-carga { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-end; }
+.campo { flex:1; min-width:230px; }
+.campo label { display:block; font-size:11px; color:var(--ink-dim); margin-bottom:7px; }
+.campo input[type=file], .campo select, .campo input[type=text] {
+  width:100%; padding:11px 12px; background:rgba(5,8,18,.7); border:1px solid var(--line); color:var(--ink);
+  border-radius:10px; font-size:12.5px; font-family:'Inter',sans-serif;
+}
+.campo input[type=file]::file-selector-button{
+  background:rgba(139,107,255,.18); border:1px solid rgba(139,107,255,.4); color:var(--ink);
+  padding:6px 10px; border-radius:7px; font-size:11px; margin-right:10px; cursor:pointer;
+}
+.campo input:focus, .campo select:focus { outline:none; border-color:var(--violeta); }
+
+.btn {
+  background:linear-gradient(135deg,var(--violeta),var(--violeta-2));
+  color:#fff; border:none; padding:12px 22px; border-radius:10px; font-size:12.5px; font-weight:600;
+  cursor:pointer; transition:.2s; box-shadow:0 8px 22px -8px rgba(139,107,255,.6);
+}
+.btn:hover { filter:brightness(1.12); transform:translateY(-1px); }
+.btn:disabled { background:#232a42; box-shadow:none; cursor:not-allowed; color:var(--ink-dim); transform:none; }
+.btn-secundario {
+  background:rgba(255,255,255,.05); border:1px solid var(--line); box-shadow:none;
+}
+.btn-secundario:hover { background:rgba(255,255,255,.09); filter:none; }
+.estado-carga { font-size:12px; color:var(--verde); margin-top:12px; }
+.estado-error { font-size:12px; color:var(--rojo); margin-top:12px; }
+
+/* --- Nodo central + conectores estilo "modelo de matching" --- */
+.zona-flujo { display:grid; grid-template-columns:64px 1fr; gap:6px; position:relative; }
+.zona-flujo.sin-nodo { grid-template-columns:1fr; }
+.nodo-central-wrap { position:relative; display:flex; align-items:center; justify-content:center; z-index:2; }
+.nodo-central {
+  width:46px; height:46px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, rgba(139,107,255,.55), rgba(91,79,224,.25));
+  border:1px solid rgba(139,107,255,.6);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 0 24px rgba(139,107,255,.45);
+  z-index:2;
+  position:relative;
+}
+.conector-svg { position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; z-index:0; }
+.lista-flujo { display:flex; flex-direction:column; gap:14px; position:relative; z-index:2; }
+.ranking-lista { position:relative; z-index:2; }
+
+.toggle-row {
+  background:rgba(5,8,18,.65); border:1px solid var(--line); border-radius:12px;
+  padding:14px 16px; display:flex; justify-content:space-between; align-items:center; gap:14px;
+  min-height:56px;
+}
+.toggle-row .peso-label { font-size:12.5px; color:var(--ink); }
+.toggle-row .peso-valor { font-size:12px; color:var(--verde); font-weight:700; min-width:38px; text-align:right; }
+.toggle-row input[type=range] {
+  -webkit-appearance:none; width:130px; height:5px; border-radius:3px;
+  background:linear-gradient(90deg,var(--violeta) var(--fill,50%), rgba(255,255,255,.12) var(--fill,50%));
+  cursor:pointer;
+}
+.toggle-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none; width:17px; height:17px; border-radius:50%;
+  background:#fff; border:3px solid var(--violeta); box-shadow:0 0 10px rgba(139,107,255,.8); cursor:pointer;
+}
+.toggle-row input[type=range]::-moz-range-thumb {
+  width:17px; height:17px; border-radius:50%; background:#fff; border:3px solid var(--violeta); cursor:pointer;
+}
+
+.suma-pesos { margin-top:14px; font-size:12px; text-align:right; color:var(--ink-dim); }
+.suma-pesos.ok { color:var(--verde); }
+.suma-pesos.mal { color:var(--ambar); }
+
+.ficha-nivel-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+.ficha-item { background:rgba(5,8,18,.65); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+.ficha-item small { color:var(--ink-dim); font-size:9.5px; text-transform:uppercase; letter-spacing:.4px; display:block; }
+.ficha-item strong { font-size:19px; font-family:'Space Grotesk',sans-serif; color:var(--ink); display:block; margin-top:4px; }
+.ficha-item strong.pos { color:var(--verde); }
+.ficha-item strong.neg { color:var(--rojo); }
+.ficha-item.destacado { border-color:rgba(139,107,255,.5); background:rgba(139,107,255,.08); }
+.ficha-nota { grid-column:1/-1; font-size:11px; color:var(--ink-dim); margin-top:2px; }
+.check-row { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-dim); cursor:pointer; padding:11px 0; }
+.check-row input { width:16px; height:16px; accent-color:var(--violeta); cursor:pointer; }
+.campo-checkbox { display:flex; align-items:flex-end; }
+
+.badge-movimiento { display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:600; padding:3px 10px; border-radius:20px; margin-top:6px; text-transform:uppercase; letter-spacing:.3px; }
+.mov-crecimiento { background:rgba(52,224,161,.14); color:var(--verde); border:1px solid rgba(52,224,161,.4); }
+.mov-horizontal { background:rgba(93,214,255,.12); color:var(--cian); border:1px solid rgba(93,214,255,.35); }
+.mov-saltoAmbicioso { background:rgba(139,107,255,.14); color:var(--violeta); border:1px solid rgba(139,107,255,.4); }
+.mov-descenso { background:rgba(255,92,122,.12); color:var(--rojo); border:1px solid rgba(255,92,122,.35); }
+
+.info-metodologia {
+  background:rgba(93,214,255,.06); border:1px solid rgba(93,214,255,.25); border-left:3px solid var(--cian);
+  border-radius:10px; padding:14px 16px; font-size:11.5px; color:var(--ink-dim); line-height:1.7; margin-top:16px;
+}
+.info-metodologia strong { color:var(--cian); }
+.info-metodologia u { color:var(--ink); }
+
+.resultados-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px; }
+.resultados-header h2 { color:var(--ink); font-size:19px; font-weight:700; }
+.resultados-header .sub { color:var(--ink-dim); font-size:12px; margin-top:4px; }
+
+.filtros-resultado { display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
+.filtros-resultado select {
+  padding:9px 12px; background:rgba(5,8,18,.7); border:1px solid var(--line); color:var(--ink);
+  border-radius:9px; font-size:11.5px;
+}
+
+.ranking-lista { display:flex; flex-direction:column; gap:12px; }
+.card-club {
+  background:rgba(9,13,28,.78); border:1px solid var(--line); border-radius:14px; padding:16px 18px;
+  display:grid; grid-template-columns:28px 46px minmax(0,1fr) 150px; gap:16px; align-items:center; cursor:pointer;
+  transition:.2s; position:relative;
+}
+.card-club:hover { border-color:rgba(139,107,255,.55); transform:translateX(2px); }
+.card-club.top1 { border-color:rgba(52,224,161,.6); box-shadow:0 0 30px -10px rgba(52,224,161,.35); }
+.card-club .pos-num { grid-column:1; }
+.card-club .escudo, .card-club img.escudo { grid-column:2; }
+.card-club .info-club { grid-column:3; }
+.card-club .pct-box { grid-column:4; }
+.card-club .detalle-club { grid-column:1/-1; }
+.card-club .pos-num { font-size:16px; font-weight:700; color:var(--ink-dim); text-align:center; font-family:'Space Grotesk',sans-serif; }
+.card-club img.escudo { width:40px; height:40px; object-fit:contain; border-radius:8px; background:rgba(255,255,255,.03); }
+.card-club .info-club h4 { color:var(--ink); font-size:14.5px; font-weight:600; margin-bottom:4px; }
+.card-club .info-club small { color:var(--ink-dim); font-size:11px; }
+.card-club .pct-box { text-align:right; min-width:130px; }
+.card-club .pct-box strong { display:block; font-size:22px; font-family:'Space Grotesk',sans-serif; }
+.card-club .pct-box small { display:block; font-size:9px; text-transform:uppercase; margin-top:2px; letter-spacing:.4px; }
+.barra-pct { height:4px; border-radius:3px; background:rgba(255,255,255,.08); margin-top:8px; overflow:hidden; }
+.barra-pct-fill { height:100%; border-radius:3px; }
+
+.pct-excelente strong, .pct-excelente small { color:var(--verde); }
+.pct-muybueno strong, .pct-muybueno small { color:var(--cian); }
+.pct-posible strong, .pct-posible small { color:var(--ambar); }
+.pct-bajo strong, .pct-bajo small { color:var(--naranja); }
+.pct-norecomendable strong, .pct-norecomendable small { color:var(--rojo); }
+.fill-excelente { background:linear-gradient(90deg,#1c9d72,var(--verde)); }
+.fill-muybueno { background:linear-gradient(90deg,#2b8fb0,var(--cian)); }
+.fill-posible { background:linear-gradient(90deg,#a98423,var(--ambar)); }
+.fill-bajo { background:linear-gradient(90deg,#b5622a,var(--naranja)); }
+.fill-norecomendable { background:linear-gradient(90deg,#a53350,var(--rojo)); }
+
+.detalle-club { display:none; grid-column:1/-1; margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+.detalle-club.abierto { display:block; }
+.detalle-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:14px; }
+.sub-score { background:rgba(5,8,18,.6); border:1px solid var(--line); border-radius:9px; padding:10px 12px; }
+.sub-score small { color:var(--ink-dim); font-size:9px; text-transform:uppercase; display:block; letter-spacing:.3px; }
+.sub-score strong { font-size:15px; color:var(--ink); font-family:'Space Grotesk',sans-serif; }
+.barra { height:5px; background:rgba(255,255,255,.08); border-radius:3px; margin-top:7px; overflow:hidden; }
+.barra-fill { height:100%; background:linear-gradient(90deg,var(--violeta-2),var(--violeta)); }
+.explicacion-texto { font-size:12px; color:#c8cef0; line-height:1.7; background:rgba(5,8,18,.6); border-radius:9px; padding:12px 14px; border:1px solid var(--line); }
+.tags-club { font-size:10px; color:var(--ink-dim); margin-top:8px; }
+.tag { display:inline-block; background:rgba(139,107,255,.1); border:1px solid rgba(139,107,255,.3); color:#cfc7ff; padding:3px 9px; border-radius:20px; margin:3px 4px 0 0; }
+
+.comparar-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; }
+.comparar-col { background:rgba(9,13,28,.78); border:1px solid var(--line); border-radius:14px; padding:20px; position:relative; }
+.comparar-col.top1 { border-color:rgba(52,224,161,.6); box-shadow:0 0 30px -10px rgba(52,224,161,.35); }
+.comparar-col h4 { font-size:16px; color:var(--ink); margin-top:6px; }
+.comparar-col small { color:var(--ink-dim); font-size:11px; }
+.comparar-mejor-tag { display:inline-block; background:var(--verde); color:#04220f; font-size:10px; font-weight:700; padding:3px 10px; border-radius:20px; letter-spacing:.3px; margin-bottom:12px; }
+
+.sin-datos { text-align:center; color:var(--ink-dim); padding:70px 20px; }
+.sin-datos strong { display:block; color:var(--ink); font-size:16px; margin-bottom:10px; font-family:'Space Grotesk',sans-serif; }
+
+@media (max-width:700px){
+  .zona-flujo { grid-template-columns:1fr; }
+  .nodo-central-wrap { display:none; }
+  .card-club { grid-template-columns:20px 36px minmax(0,1fr); }
+  .pct-box { grid-column:1/-1; text-align:left; margin-top:6px; }
+}
+@media print {
+  body { background:#fff !important; color:#111 !important; padding:10px; }
+  body::before { display:none !important; }
+  .header-principal, #panelExcel, .panel:has(#inputExcel), #panelModo, #panelJugador, #panelClub,
+  #panelComparar, #panelPesos, .filtros-resultado, #btnExportarPDF, .badge-nuevo { display:none !important; }
+  .panel { background:#fff !important; border:1px solid #ccc !important; box-shadow:none !important; backdrop-filter:none !important; color:#111 !important; }
+  .eyebrow, .eyebrow::after { color:#555 !important; background:none !important; }
+  .ficha-item, .sub-score, .card-club, .comparar-col, .explicacion-texto, .tag {
+    background:#f7f7f9 !important; border:1px solid #ddd !important; color:#111 !important; box-shadow:none !important;
+  }
+  .ficha-item strong, .sub-score strong, .card-club h4, .comparar-col h4, .pct-box strong { color:#111 !important; }
+  h1, h2, h3, h4, .resultados-header h2, .header-principal h1 { color:#111 !important; }
+  .ficha-item small, .sub-score small, .card-club small, .comparar-col small, .sub, .ficha-nota { color:#555 !important; }
+  .card-club:hover, .comparar-col:hover { transform:none !important; }
+  .detalle-club { display:block !important; }
+  .conector-svg, .nodo-central-wrap { display:none !important; }
+  .zona-flujo { grid-template-columns:1fr !important; }
+  .card-club, .comparar-col { break-inside:avoid; page-break-inside:avoid; }
+  .comparar-grid { break-inside:avoid; page-break-inside:avoid; }
+  .panel:has(#fichaNivelGrid) { break-after:avoid; page-break-after:avoid; }
+  .barra, .barra-pct { background:#ddd !important; }
+  a[href]::after { content:""; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header-principal">
+    <div>
+      <span class="eyebrow">MODELO DE MATCHING</span>
+      <h1>⚽ Matching Jugador ↔ Club</h1>
+      <p>Módulo de compatibilidad — apoyo al scouting, no decide fichajes</p>
+    </div>
+    <span class="badge-nuevo">Módulo nuevo</span>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span class="eyebrow">1. CARGAR BASE DE DATOS</span>
+      <div class="hex-icon">⬡</div>
+    </div>
+    <div class="fila-carga">
+      <div class="campo">
+        <label>Excel (Base de datos, Estadísticas, Rendimiento por competencia y Clubes Objetivos)</label>
+        <input type="file" id="inputExcel" accept=".xlsx,.xls">
+      </div>
+      <button class="btn" id="btnCargar">Leer Excel</button>
+    </div>
+    <div id="estadoCarga"></div>
+  </div>
+
+  <div class="panel" id="panelModo" style="display:none;">
+    <div class="panel-header">
+      <span class="eyebrow">2. MODO DE BÚSQUEDA</span>
+      <div class="hex-icon">⬡</div>
+    </div>
+    <div class="modo-toggle modo-toggle-3">
+      <button class="modo-btn activo" id="btnModoJ2C" onclick="cambiarModo('j2c')">
+        🧭 Jugador → Clubes
+        <small>Tengo un jugador, ¿qué club le queda?</small>
+      </button>
+      <button class="modo-btn" id="btnModoC2J" onclick="cambiarModo('c2j')">
+        🔎 Club → Jugadores
+        <small>Tengo un club/posición a cubrir, ¿qué jugador me sirve?</small>
+      </button>
+      <button class="modo-btn" id="btnModoComparar" onclick="cambiarModo('comparar')">
+        ⚖️ Comparar Jugadores
+        <small>Tengo 2-3 candidatos, ¿cuál encaja mejor en tal club?</small>
+      </button>
+    </div>
+  </div>
+
+  <div class="panel" id="panelJugador" style="display:none;">
+    <div class="panel-header">
+      <span class="eyebrow">3. ELEGIR JUGADOR</span>
+      <div class="hex-icon">⬡</div>
+    </div>
+    <div class="fila-carga">
+      <div class="campo">
+        <label>Buscar jugador</label>
+        <input type="text" id="buscarJugador" placeholder="Nombre del jugador...">
+      </div>
+      <div class="campo">
+        <label>Jugador seleccionado</label>
+        <select id="selectJugador"><option value="">— Elegí un jugador —</option></select>
+      </div>
+      <button class="btn" id="btnMatchear" disabled>Correr Matching</button>
+    </div>
+  </div>
+
+  <div class="panel" id="panelClub" style="display:none;">
+    <div class="panel-header">
+      <span class="eyebrow">3. ELEGIR CLUB Y POSICIÓN A CUBRIR</span>
+      <div class="hex-icon">⬡</div>
+    </div>
+    <div class="fila-carga">
+      <div class="campo">
+        <label>Buscar club</label>
+        <input type="text" id="buscarClub" placeholder="Nombre del club...">
+      </div>
+      <div class="campo">
+        <label>Club seleccionado</label>
+        <select id="selectClub"><option value="">— Elegí un club —</option></select>
+      </div>
+      <div class="campo">
+        <label>Posición a cubrir</label>
+        <select id="selectPosicionBuscada">
+          <option value="">Cualquier posición</option>
+          <option value="arquero">Arquero</option>
+          <option value="defensor">Defensor</option>
+          <option value="mediocampista">Mediocampista</option>
+          <option value="delantero">Delantero</option>
+        </select>
+      </div>
+      <button class="btn" id="btnBuscarCandidatos" disabled>Buscar Candidatos</button>
+    </div>
+  </div>
+
+  <div class="panel" id="panelComparar" style="display:none;">
+    <div class="panel-header">
+      <span class="eyebrow">3. ELEGIR CLUB Y 2-3 CANDIDATOS</span>
+      <div class="hex-icon">⬡</div>
+    </div>
+    <div class="fila-carga">
+      <div class="campo">
+        <label>Club objetivo</label>
+        <select id="selectClubComparar"><option value="">— Elegí un club —</option></select>
+      </div>
+    </div>
+    <div class="fila-carga" style="margin-top:12px;">
+      <div class="campo">
+        <label>Candidato 1</label>
+        <input type="text" list="datalistJugadores" id="compararJugador1" placeholder="Nombre del jugador...">
+      </div>
+      <div class="campo">
+        <label>Candidato 2</label>
+        <input type="text" list="datalistJugadores" id="compararJugador2" placeholder="Nombre del jugador...">
+      </div>
+      <div class="campo">
+        <label>Candidato 3 (opcional)</label>
+        <input type="text" list="datalistJugadores" id="compararJugador3" placeholder="Nombre del jugador...">
+      </div>
+      <button class="btn" id="btnComparar" disabled>Comparar</button>
+    </div>
+    <datalist id="datalistJugadores"></datalist>
+    <div id="estadoComparar"></div>
+  </div>
+
+  <div class="panel" id="panelPesos" style="display:none;">
+    <div class="panel-header">
+      <span class="eyebrow">4. PESO DE CADA VARIABLE</span>
+      <div class="hex-icon">⬡</div>
+    </div>
+    <div class="zona-flujo">
+      <svg class="conector-svg" id="svgConectorPesos"></svg>
+      <div class="nodo-central-wrap">
+        <div class="nodo-central">●</div>
+      </div>
+      <div class="lista-flujo" id="listaPesos">
+        <div class="toggle-row" data-fila>
+          <span class="peso-label">Nivel competitivo vs club</span>
+          <span class="peso-valor" id="valPeso1">35%</span>
+          <input type="range" id="peso1" min="0" max="100" value="35">
+        </div>
+        <div class="toggle-row" data-fila>
+          <span class="peso-label">Encaje táctico</span>
+          <span class="peso-valor" id="valPeso2">25%</span>
+          <input type="range" id="peso2" min="0" max="100" value="25">
+        </div>
+        <div class="toggle-row" data-fila>
+          <span class="peso-label">Rendimiento y stats</span>
+          <span class="peso-valor" id="valPeso3">20%</span>
+          <input type="range" id="peso3" min="0" max="100" value="20">
+        </div>
+        <div class="toggle-row" data-fila>
+          <span class="peso-label">Nivel de liga</span>
+          <span class="peso-valor" id="valPeso4">10%</span>
+          <input type="range" id="peso4" min="0" max="100" value="10">
+        </div>
+        <div class="toggle-row" data-fila>
+          <span class="peso-label">Contexto adicional</span>
+          <span class="peso-valor" id="valPeso5">10%</span>
+          <input type="range" id="peso5" min="0" max="100" value="10">
+        </div>
+      </div>
+    </div>
+    <div class="suma-pesos" id="sumaPesos">Suma: 100%</div>
+    <div class="info-metodologia">
+      <strong>Cómo se calcula cada variable</strong> (transparencia total, sin datos inventados):<br>
+      • <strong>Nivel competitivo vs club:</strong> ya NO es una simple cercanía numérica. Compara el <u>Nivel Competitivo Efectivo</u> del jugador (ver ficha arriba) contra el Nivel de Club con una curva asimétrica: estar moderadamente por encima puntúa mejor que estar por debajo — un club muy por debajo de su nivel efectivo se penaliza fuerte, no se premia por "cercanía".<br>
+      • <strong>Encaje táctico:</strong> se estima un perfil del jugador (asociativo/vertical/presionante) a partir de sus stats reales (Pases%, Duelos%, Intercepciones, Goles, Xg, Asistencias, Xa) y se compara contra los tags de "Estilo de juego" del club. Es una <u>estimación</u>, no un dato declarado — no hay columna de "estilo de juego del jugador" en tu base.<br>
+      • <strong>Rendimiento y stats:</strong> se normalizan las estadísticas relevantes <u>según la posición</u> del jugador (un defensor no se compara con las stats de un delantero).<br>
+      • <strong>Nivel de liga:</strong> misma lógica asimétrica que "nivel vs club", pero comparando la Liga de Nivel actual del jugador contra el Nivel de Liga objetivo.<br>
+      • <strong>Contexto adicional:</strong> edad (años de rendimiento pico) y país (afinidad liga-nacionalidad), únicos datos de contexto disponibles en tu Excel.<br><br>
+      <strong>Filtro de categoría y trayectoria:</strong> por defecto se excluyen los clubes de categoría inferior a la actual del jugador (no se sugieren descensos salvo que tildes el check). La "Dirección de carrera" filtra además por tipo de movimiento: Mantener nivel (solo horizontal), Crecimiento (horizontal + crecimiento, default), Salto ambicioso (crecimiento + salto), Todas (sin filtro de movimiento).
+    </div>
+  </div>
+
+  <div class="panel" id="panelFicha" style="display:none;">
+    <div class="panel-header">
+      <span class="eyebrow">NIVEL COMPETITIVO EFECTIVO</span>
+      <div class="hex-icon">⬡</div>
+    </div>
+    <div class="ficha-nivel-grid" id="fichaNivelGrid"></div>
+    <div class="fila-carga" style="margin-top:16px;">
+      <div class="campo">
+        <label>Dirección de carrera</label>
+        <select id="direccionCarrera">
+          <option value="mantener">Mantener nivel</option>
+          <option value="crecimiento" selected>Crecimiento</option>
+          <option value="ambicioso">Salto ambicioso</option>
+          <option value="todas">Todas las opciones</option>
+        </select>
+      </div>
+      <div class="campo campo-checkbox">
+        <label class="check-row"><input type="checkbox" id="permitirDescensos"> Permitir clubes de categoría inferior (descensos)</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panelResultados" style="display:none;">
+    <div class="resultados-header">
+      <div>
+        <span class="eyebrow">RESULTADO</span>
+        <h2 id="tituloResultado">Ranking de encaje</h2>
+        <div class="sub" id="subResultado"></div>
+      </div>
+      <button class="btn btn-secundario" id="btnExportarPDF" onclick="exportarPDF()">📄 Exportar a PDF</button>
+    </div>
+    <div class="filtros-resultado" id="filtrosJ2C">
+      <select id="filtroLiga"><option value="">Todas las ligas</option></select>
+      <select id="filtroPais"><option value="">Todos los países</option></select>
+      <select id="filtroClasif">
+        <option value="">Todas las clasificaciones</option>
+        <option value="excelente">Encaje excelente</option>
+        <option value="muybueno">Muy buen encaje</option>
+        <option value="posible">Encaje posible</option>
+        <option value="bajo">Encaje bajo</option>
+        <option value="norecomendable">Poco recomendable</option>
+      </select>
+    </div>
+    <div class="filtros-resultado" id="filtrosC2J" style="display:none;">
+      <input type="text" id="buscarEnResultado" placeholder="Buscar jugador en resultados...">
+      <select id="filtroPosicionResultado">
+        <option value="">Cualquier posición</option>
+        <option value="arquero">Arquero</option>
+        <option value="defensor">Defensor</option>
+        <option value="mediocampista">Mediocampista</option>
+        <option value="delantero">Delantero</option>
+      </select>
+      <select id="filtroClasifC2J">
+        <option value="">Todas las clasificaciones</option>
+        <option value="excelente">Encaje excelente</option>
+        <option value="muybueno">Muy buen encaje</option>
+        <option value="posible">Encaje posible</option>
+        <option value="bajo">Encaje bajo</option>
+        <option value="norecomendable">Poco recomendable</option>
+      </select>
+    </div>
+    <div class="zona-flujo" id="zonaFlujoResultados">
+      <svg class="conector-svg" id="svgConectorRanking"></svg>
+      <div class="nodo-central-wrap" id="nodoResultadosWrap">
+        <div class="nodo-central">✓</div>
+      </div>
+      <div class="ranking-lista" id="rankingLista"></div>
+    </div>
+  </div>
+
+  <div class="sin-datos" id="mensajeInicial">
+    <strong>👋 Arrancá subiendo tu Excel</strong>
+    Necesito la hoja "Base de datos", alguna hoja de rendimiento por competencia (con columna PROM.), "Estadisticas" y "Clubes Objetivos".
+  </div>
+
+</div>
+
+<script>
+let STATE = { wb:null, jugadores:[], estadisticas:{}, clubes:[], hojasRendimiento:[] };
+let JUGADOR_ACTUAL = null;
+let CLUB_ACTUAL = null;
+let COMPARAR_ACTUAL = [];
+let MODO_ACTUAL = 'j2c'; // 'j2c' = Jugador→Clubes, 'c2j' = Club→Jugadores
+let ULTIMO_RANKING = [];
+
+const HOJAS_IGNORAR = ['clubes objetivos','estadisticas','base de datos','base de datos reserva'];
+
+document.getElementById('btnCargar').addEventListener('click', cargarExcel);
+document.getElementById('buscarJugador').addEventListener('input', filtrarJugadores);
+document.getElementById('selectJugador').addEventListener('change', onJugadorSeleccionado);
+document.getElementById('btnMatchear').addEventListener('click', correrMatching);
+document.getElementById('buscarClub').addEventListener('input', filtrarClubesSelect);
+document.getElementById('selectClub').addEventListener('change', onClubSeleccionado);
+document.getElementById('btnBuscarCandidatos').addEventListener('click', correrMatchingInverso);
+document.getElementById('selectClubComparar').addEventListener('change', onComparacionInputChange);
+['compararJugador1','compararJugador2','compararJugador3'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', onComparacionInputChange);
+});
+document.getElementById('btnComparar').addEventListener('click', correrComparacion);
+['peso1','peso2','peso3','peso4','peso5'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', actualizarPesos);
+});
+document.getElementById('direccionCarrera').addEventListener('change', ()=> recalcularSegunModo());
+document.getElementById('permitirDescensos').addEventListener('change', ()=> recalcularSegunModo());
+document.getElementById('filtroLiga').addEventListener('change', renderRanking);
+document.getElementById('filtroPais').addEventListener('change', renderRanking);
+document.getElementById('filtroClasif').addEventListener('change', renderRanking);
+document.getElementById('buscarEnResultado').addEventListener('input', renderRanking);
+document.getElementById('filtroPosicionResultado').addEventListener('change', renderRanking);
+document.getElementById('filtroClasifC2J').addEventListener('change', renderRanking);
+window.addEventListener('resize', ()=>{
+  dibujarConectores('listaPesos','svgConectorPesos','.toggle-row', ()=>'rgba(139,107,255,.55)');
+  if(document.getElementById('panelResultados').style.display!=='none'){
+    dibujarConectores('rankingLista','svgConectorRanking','.card-club', colorConectorRanking);
+  }
+});
+
+function cargarExcel(){
+  const archivo = document.getElementById('inputExcel').files[0];
+  const estadoEl = document.getElementById('estadoCarga');
+  if(!archivo){ estadoEl.innerHTML = '<div class="estado-error">Elegí un archivo primero.</div>'; return; }
+  estadoEl.innerHTML = '<div class="estado-carga">Leyendo...</div>';
+  const lector = new FileReader();
+  lector.onload = function(e){
+    try{
+      const datos = new Uint8Array(e.target.result);
+      const wb = XLSX.read(datos, {type:'array'});
+      STATE.wb = wb;
+      procesarWorkbook(wb);
+      estadoEl.innerHTML = `<div class="estado-carga">✅ Cargado: ${STATE.jugadores.length} jugadores, ${STATE.clubes.length} clubes objetivo, ${STATE.hojasRendimiento.length} hojas de rendimiento detectadas.</div>`;
+      document.getElementById('mensajeInicial').style.display = 'none';
+      document.getElementById('panelModo').style.display = 'block';
+      document.getElementById('panelJugador').style.display = 'block';
+      poblarSelectJugadores();
+      poblarSelectClubes();
+      poblarDatalistJugadores();
+    }catch(err){
+      console.error(err);
+      estadoEl.innerHTML = '<div class="estado-error">Error leyendo el Excel: '+err.message+'</div>';
+    }
+  };
+  lector.readAsArrayBuffer(archivo);
+}
+
+function hojaAJson(wb, nombre){
+  if(!wb.Sheets[nombre]) return [];
+  return XLSX.utils.sheet_to_json(wb.Sheets[nombre], {defval:null});
+}
+
+function normalizarNombre(s){
+  return (s||'').toString().trim().toLowerCase();
+}
+
+function procesarWorkbook(wb){
+  STATE.jugadores = [];
+  STATE.estadisticas = {};
+  STATE.clubes = [];
+  STATE.hojasRendimiento = [];
+
+  // Base de datos (identidad del jugador)
+  const nombresBase = wb.SheetNames.filter(n => normalizarNombre(n).startsWith('base de datos'));
+  let baseDatos = [];
+  nombresBase.forEach(n => { baseDatos = baseDatos.concat(hojaAJson(wb, n)); });
+  STATE.jugadores = baseDatos.filter(j => j['Jugador']);
+
+  // Estadisticas
+  const filasStats = hojaAJson(wb, 'Estadisticas');
+  filasStats.forEach(f => {
+    if(f['Jugador']) STATE.estadisticas[normalizarNombre(f['Jugador'])] = f;
+  });
+
+  // Clubes Objetivos
+  const filasClubes = hojaAJson(wb, 'Clubes Objetivos');
+  STATE.clubes = filasClubes.filter(c => c['Club']).map(c => ({
+    club: c['Club'],
+    liga: c['Liga'],
+    pais: c['País'] || c['Pais'],
+    estilo: (c['Estilo de juego']||'').toString(),
+    escudo: c['Escudo (URL)'] || c['Escudo'] || '',
+    nivelLiga: parseFloat(c['Nivel de Liga']) || 0,
+    nivelClub: parseFloat(c['Nivel de Club']) || 0
+  }));
+
+  // Hojas de rendimiento por competencia: cualquier hoja con columna 'PROM.' o 'Jugador'+'Progreso'
+  wb.SheetNames.forEach(nombre => {
+    const norm = normalizarNombre(nombre);
+    if(HOJAS_IGNORAR.includes(norm)) return;
+    const filas = hojaAJson(wb, nombre);
+    if(filas.length && filas[0].hasOwnProperty('Jugador') && (filas[0].hasOwnProperty('PROM.') || filas.some(f=>f.hasOwnProperty('PROM.')))){
+      STATE.hojasRendimiento.push({ nombre, filas });
+    }
+  });
+}
+
+function buscarRendimientoJugador(nombreJugador){
+  const norm = normalizarNombre(nombreJugador);
+  for(const hoja of STATE.hojasRendimiento){
+    const fila = hoja.filas.find(f => normalizarNombre(f['Jugador']) === norm);
+    if(fila) return { hoja: hoja.nombre, fila };
+  }
+  return null;
+}
+
+function poblarSelectJugadores(){
+  const sel = document.getElementById('selectJugador');
+  sel.innerHTML = '<option value="">— Elegí un jugador —</option>';
+  STATE.jugadores
+    .slice()
+    .sort((a,b)=> (a['Jugador']||'').localeCompare(b['Jugador']||''))
+    .forEach(j=>{
+      const opt = document.createElement('option');
+      opt.value = j['Jugador'];
+      opt.textContent = `${j['Jugador']} — ${j['Posición Principal']||'?'} — ${j['Club']||'?'}`;
+      sel.appendChild(opt);
+    });
+}
+
+function filtrarJugadores(){
+  const q = normalizarNombre(document.getElementById('buscarJugador').value);
+  const sel = document.getElementById('selectJugador');
+  [...sel.options].forEach(opt=>{
+    if(!opt.value){ opt.hidden=false; return; }
+    opt.hidden = q && !normalizarNombre(opt.textContent).includes(q);
+  });
+}
+
+function onJugadorSeleccionado(){
+  const nombre = document.getElementById('selectJugador').value;
+  document.getElementById('btnMatchear').disabled = !nombre;
+  const panelPesos = document.getElementById('panelPesos');
+  panelPesos.style.display = nombre ? 'block' : 'none';
+  if(nombre){
+    requestAnimationFrame(()=> dibujarConectores('listaPesos','svgConectorPesos','.toggle-row', ()=>'rgba(139,107,255,.55)'));
+  }
+}
+
+function cambiarModo(modo){
+  MODO_ACTUAL = modo;
+  document.getElementById('btnModoJ2C').classList.toggle('activo', modo==='j2c');
+  document.getElementById('btnModoC2J').classList.toggle('activo', modo==='c2j');
+  document.getElementById('btnModoComparar').classList.toggle('activo', modo==='comparar');
+  document.getElementById('panelJugador').style.display = modo==='j2c' ? 'block' : 'none';
+  document.getElementById('panelClub').style.display = modo==='c2j' ? 'block' : 'none';
+  document.getElementById('panelComparar').style.display = modo==='comparar' ? 'block' : 'none';
+  // Cambiar de modo invalida el resultado anterior — evita mezclar rankings de distinto tipo.
+  document.getElementById('panelPesos').style.display = 'none';
+  document.getElementById('panelFicha').style.display = 'none';
+  document.getElementById('panelResultados').style.display = 'none';
+  JUGADOR_ACTUAL = null;
+  CLUB_ACTUAL = null;
+  ULTIMO_RANKING = [];
+  COMPARAR_ACTUAL = [];
+}
+
+function poblarSelectClubes(){
+  const opciones = STATE.clubes
+    .map((c, idxOriginal) => ({c, idxOriginal}))
+    .sort((a,b)=> (a.c.club||'').localeCompare(b.c.club||''));
+  ['selectClub','selectClubComparar'].forEach(id=>{
+    const sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">— Elegí un club —</option>';
+    opciones.forEach(({c, idxOriginal})=>{
+      const opt = document.createElement('option');
+      opt.value = c.club + '||' + idxOriginal; // idx del array ORIGINAL STATE.clubes, no del orden alfabético
+      opt.textContent = `${c.club} — ${c.liga||'?'} — ${c.pais||'?'}`;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+function poblarDatalistJugadores(){
+  const dl = document.getElementById('datalistJugadores');
+  dl.innerHTML = STATE.jugadores
+    .slice()
+    .sort((a,b)=> (a['Jugador']||'').localeCompare(b['Jugador']||''))
+    .map(j => `<option value="${j['Jugador']}">`)
+    .join('');
+}
+
+function buscarClubPorValorSelect(valorSelect){
+  if(!valorSelect) return null;
+  const idx = parseInt(valorSelect.split('||')[1]);
+  return STATE.clubes[idx] || null;
+}
+
+function filtrarClubesSelect(){
+  const q = normalizarNombre(document.getElementById('buscarClub').value);
+  const sel = document.getElementById('selectClub');
+  [...sel.options].forEach(opt=>{
+    if(!opt.value){ opt.hidden=false; return; }
+    opt.hidden = q && !normalizarNombre(opt.textContent).includes(q);
+  });
+}
+
+function onClubSeleccionado(){
+  const val = document.getElementById('selectClub').value;
+  document.getElementById('btnBuscarCandidatos').disabled = !val;
+  const panelPesos = document.getElementById('panelPesos');
+  panelPesos.style.display = val ? 'block' : 'none';
+  if(val){
+    requestAnimationFrame(()=> dibujarConectores('listaPesos','svgConectorPesos','.toggle-row', ()=>'rgba(139,107,255,.55)'));
+  }
+}
+
+function onComparacionInputChange(){
+  const club = document.getElementById('selectClubComparar').value;
+  const n1 = document.getElementById('compararJugador1').value.trim();
+  const n2 = document.getElementById('compararJugador2').value.trim();
+  const listo = !!club && !!n1 && !!n2;
+  document.getElementById('btnComparar').disabled = !listo;
+  const panelPesos = document.getElementById('panelPesos');
+  panelPesos.style.display = listo ? 'block' : 'none';
+  if(listo){
+    requestAnimationFrame(()=> dibujarConectores('listaPesos','svgConectorPesos','.toggle-row', ()=>'rgba(139,107,255,.55)'));
+  }
+}
+
+function actualizarPesos(e){
+  const ids = ['peso1','peso2','peso3','peso4','peso5'];
+  const vals = ids.map(id=>parseInt(document.getElementById(id).value));
+  ids.forEach((id,i)=>{
+    document.getElementById('valPeso'+(i+1)).textContent = vals[i]+'%';
+    document.getElementById(id).style.setProperty('--fill', vals[i]+'%');
+  });
+  const suma = vals.reduce((a,b)=>a+b,0);
+  const sumaEl = document.getElementById('sumaPesos');
+  sumaEl.textContent = `Suma: ${suma}%` + (suma!==100 ? ' (se va a normalizar automáticamente a 100%)' : '');
+  sumaEl.className = 'suma-pesos ' + (suma===100 ? 'ok' : 'mal');
+  if(JUGADOR_ACTUAL || CLUB_ACTUAL || COMPARAR_ACTUAL.length) recalcularSegunModo();
+}
+
+function recalcularSegunModo(){
+  if(MODO_ACTUAL==='j2c') recalcularRanking();
+  else if(MODO_ACTUAL==='c2j') recalcularRankingInverso();
+  else recalcularComparacion();
+}
+
+function obtenerPesos(){
+  const ids = ['peso1','peso2','peso3','peso4','peso5'];
+  const vals = ids.map(id=>parseInt(document.getElementById(id).value));
+  const suma = vals.reduce((a,b)=>a+b,0) || 1;
+  return vals.map(v => v/suma);
+}
+
+// ---------- Lógica de posición ----------
+function grupoPosicion(posicion){
+  const p = normalizarNombre(posicion);
+  if(p.includes('arquero') || p.includes('portero')) return 'arquero';
+  if(p.includes('lateral') || p.includes('defensa') || p.includes('libero') || p.includes('líbero')) return 'defensor';
+  if(p.includes('delantero') || p.includes('extremo') || p.includes('punta') || p.includes('wing')) return 'delantero';
+  return 'mediocampista'; // mediocentro, volante, pivote, enganche, mediocampista
+}
+
+function statsRelevantesPorPosicion(grupo){
+  const mapa = {
+    arquero: ['Paradas','Duelos Totales%','Aereos %'],
+    defensor: ['Duelos Totales%','Aereos %','Intercepciones','Despejes','Pases Precisos %'],
+    mediocampista: ['Pases Precisos %','Duelos Totales%','Intercepciones','Asistencias','Xa'],
+    delantero: ['Goles','Xg','Asistencias','Xa','Duelos Totales%']
+  };
+  return mapa[grupo] || mapa.mediocampista;
+}
+
+function valorNumerico(v){
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
+// normaliza una stat 0-100 contra la distribución real de todos los jugadores con stats cargadas
+function calcularRangosStats(){
+  const rangos = {};
+  const columnas = ['Paradas','Duelos Totales%','Aereos %','Intercepciones','Despejes','Pases Precisos %','Goles','Xg','Asistencias','Xa'];
+  columnas.forEach(col=>{
+    let vals = Object.values(STATE.estadisticas).map(f=>valorNumerico(f[col])).filter(v=>v!==null);
+    if(!vals.length){ rangos[col] = {min:0,max:1}; return; }
+    rangos[col] = { min: Math.min(...vals), max: Math.max(...vals) };
+  });
+  return rangos;
+}
+
+function normalizar(valor, rango){
+  if(valor===null || valor===undefined) return null;
+  const {min,max} = rango;
+  if(max===min) return 50;
+  return Math.max(0, Math.min(100, ((valor-min)/(max-min))*100));
+}
+
+// ---------- Categoría / Nivel Base / Nivel Competitivo Efectivo ----------
+
+// Mapea el nombre de la hoja de rendimiento a la categoría real del jugador en el fútbol argentino.
+// categoriaRank más alto = categoría más alta. ligaObjetivoNombre es el nombre EXACTO tal cual figura
+// en la hoja "Clubes Objetivos" para poder tomar de ahí el Nivel de Liga real (no se inventa un número).
+// nivelLigaEstimado es solo un respaldo por si "Clubes Objetivos" no trae esa liga cargada — en tu
+// Excel real las 3 primeras SÍ están, así que en la práctica se usa el valor real de la hoja.
+const MAPA_CATEGORIA_ARG = [
+  { match:'liga profesional', categoriaRank:3, categoriaNombre:'Primera División (Arg.)', ligaObjetivoNombre:'liga profesional defutbol', nivelLigaEstimado:84 },
+  { match:'primera nacional', categoriaRank:2, categoriaNombre:'Primera Nacional (Arg.)', ligaObjetivoNombre:'primera nacional', nivelLigaEstimado:68 },
+  { match:'primera b metro', categoriaRank:1, categoriaNombre:'Primera B Metropolitana (Arg.)', ligaObjetivoNombre:'primera b metropolitana', nivelLigaEstimado:58 },
+  { match:'torneo proyeccion', categoriaRank:0, categoriaNombre:'Torneo de Proyección / Reserva', ligaObjetivoNombre:null, nivelLigaEstimado:45 }
+];
+
+function normalizarTexto(s){
+  return (s||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+}
+
+function buscarNivelLigaPorNombre(nombreLigaNormalizado){
+  const club = STATE.clubes.find(c => normalizarTexto(c.liga) === nombreLigaNormalizado);
+  return club ? club.nivelLiga : null;
+}
+
+// Determina la categoría actual del jugador y el Nivel de Liga que le sirve de "piso" (Nivel Base).
+// Si no se encuentra hoja de rendimiento trackeada, intenta matchear por palabras clave contra las
+// ligas de "Clubes Objetivos" (jugadores ya en el exterior). Si tampoco hay match, lo informa como
+// estimación en vez de inventar un dato.
+function determinarCategoriaYNivelBase(jugadorInfo, rendimiento){
+  if(rendimiento){
+    const hojaNorm = normalizarTexto(rendimiento.hoja);
+    const entrada = MAPA_CATEGORIA_ARG.find(m => hojaNorm.includes(m.match));
+    if(entrada){
+      const nivelLiga = entrada.ligaObjetivoNombre ? buscarNivelLigaPorNombre(entrada.ligaObjetivoNombre) : null;
+      return {
+        categoriaRank: entrada.categoriaRank,
+        categoriaNombre: entrada.categoriaNombre,
+        nivelLigaActual: nivelLiga !== null ? nivelLiga : entrada.nivelLigaEstimado,
+        estimado: nivelLiga===null,
+        detalle: nivelLiga!==null ? `Detectada por hoja "${rendimiento.hoja}"` : `Estimado — "${entrada.categoriaNombre}" no tiene equivalente exacto en Clubes Objetivos`
+      };
+    }
+  }
+  // Fallback: jugador sin hoja de rendimiento trackeada (target del exterior). Se intenta matchear
+  // su "Competencia" declarada contra las ligas cargadas en Clubes Objetivos por palabras en común.
+  const competencia = normalizarTexto(jugadorInfo['Competencia']);
+  if(competencia){
+    const palabras = competencia.split(/\s+/).filter(w=>w.length>3 && !['liga','primera','division','futbol'].includes(w));
+    let mejorMatch = null;
+    STATE.clubes.forEach(c=>{
+      const ligaNorm = normalizarTexto(c.liga);
+      if(palabras.some(p => ligaNorm.includes(p))){
+        if(!mejorMatch) mejorMatch = c;
+      }
+    });
+    if(mejorMatch){
+      return {
+        categoriaRank: 3,
+        categoriaNombre: `Primera división — estimada por competencia "${jugadorInfo['Competencia']}"`,
+        nivelLigaActual: mejorMatch.nivelLiga,
+        estimado: true,
+        detalle: `Sin hoja de seguimiento propia; nivel de liga tomado de "${mejorMatch.liga}" por coincidencia de nombre`
+      };
+    }
+  }
+  // Sin ninguna pista confiable: no se inventa nivel, se usa el promedio general de Clubes Objetivos
+  // y se marca la categoría como desconocida (no se aplican reglas de categoría/descenso sobre este jugador).
+  const promedioGeneral = STATE.clubes.length
+    ? STATE.clubes.reduce((a,c)=>a+c.nivelLiga,0)/STATE.clubes.length
+    : 70;
+  return {
+    categoriaRank: null,
+    categoriaNombre: 'Categoría desconocida',
+    nivelLigaActual: Math.round(promedioGeneral),
+    estimado: true,
+    detalle: 'Sin hoja de rendimiento ni competencia identificable — nivel de liga actual asumido como el promedio de tus Clubes Objetivos'
+  };
+}
+
+// Nivel Base + Ajuste por Rendimiento + Ajuste por Estadísticas = Nivel Competitivo Efectivo
+function calcularNivelEfectivo(jugadorInfo, rendimiento, grupo, rendStats, categoriaInfo){
+  const nivelBase = categoriaInfo.nivelLigaActual;
+  let ajusteRendimiento = 0;
+  let detalleRendimiento = 'Sin datos de rendimiento por fecha para comparar contra su posición.';
+
+  if(rendimiento){
+    const hoja = STATE.hojasRendimiento.find(h => h.nombre === rendimiento.hoja);
+    const promJugador = valorNumerico(rendimiento.fila['PROM.']);
+    if(hoja && promJugador!==null){
+      let companeros = hoja.filas.filter(f => {
+        const pos = f['Poscion'] || f['Posición'] || f['Posicion'] || '';
+        return grupoPosicion(pos) === grupo && valorNumerico(f['PROM.'])!==null;
+      });
+      let refTexto = 'de su posición';
+      if(companeros.length < 3){
+        // muy pocos jugadores de su misma posición trackeados: se usa el promedio general de la hoja
+        companeros = hoja.filas.filter(f => valorNumerico(f['PROM.'])!==null);
+        refTexto = 'general de la competencia (pocos datos de su posición)';
+      }
+      const promedioRef = companeros.length ? companeros.reduce((a,f)=>a+valorNumerico(f['PROM.']),0)/companeros.length : promJugador;
+      const delta = promJugador - promedioRef;
+      ajusteRendimiento = Math.max(-12, Math.min(12, delta*6));
+
+      const progreso = (rendimiento.fila['Progreso']||'').toString();
+      if(progreso.includes('PROGRESO') || progreso.includes('RENDIDOR')) ajusteRendimiento += 2;
+      else if(progreso.includes('BAJO RENDIMIENTO')) ajusteRendimiento -= 3;
+      ajusteRendimiento = Math.max(-14, Math.min(14, ajusteRendimiento));
+
+      detalleRendimiento = `PROM. ${promJugador.toFixed(2)} vs promedio ${refTexto} ${promedioRef.toFixed(2)} (${companeros.length} jugadores) · ${progreso||'sin estado'}`;
+    }
+  }
+
+  // El ajuste combinado (rendimiento + estadísticas) se limita para que un buen presente no salte
+  // de categoría por sí solo: eleva el techo de forma creíble, no lo iguala de un salto al máximo.
+  const ajusteEstadisticas = rendStats!==null ? Math.max(-8, Math.min(8, (rendStats-50)/50*8)) : 0;
+  let ajusteTotal = ajusteRendimiento + ajusteEstadisticas;
+  ajusteTotal = Math.max(-16, Math.min(16, ajusteTotal));
+  const nivelEfectivo = Math.max(0, Math.min(100, nivelBase + ajusteTotal));
+
+  return { nivelBase, ajusteRendimiento, ajusteEstadisticas, nivelEfectivo, detalleRendimiento };
+}
+
+// ---------- Encaje de nivel: curva ASIMÉTRICA (ya no premia la cercanía por igual para arriba y abajo) ----------
+// Estar moderadamente POR ENCIMA del nivel efectivo puntúa mejor que estar la misma distancia por DEBAJO.
+// Esto es la corrección central: antes un club muy inferior podía puntuar igual que uno ideal.
+function scoreNivelDestino(nivelEfectivo, nivelClub){
+  if(nivelEfectivo===null) return null;
+  const diff = nivelClub - nivelEfectivo; // positivo = club superior al jugador
+  if(diff>=-3 && diff<=4) return Math.max(0, 100 - Math.abs(diff-0.5)*3);      // zona ideal
+  if(diff>4 && diff<=10) return Math.max(0, 92 - (diff-4)*3.2);                // salto ambicioso razonable
+  if(diff>10) return Math.max(20, 72 - (diff-10)*3.5);                         // salto muy grande
+  if(diff<-3 && diff>=-8) return Math.max(0, 80 - Math.abs(diff+3)*4.5);       // zona segura (por debajo, aceptable)
+  return Math.max(5, 52 - Math.abs(diff+8)*5);                                 // muy por debajo: penalización fuerte
+}
+
+function scoreLigaDestino(nivelLigaActual, nivelLigaClub){
+  if(nivelLigaActual===null) return null;
+  const diff = nivelLigaClub - nivelLigaActual;
+  if(diff>=-3 && diff<=6) return Math.max(0, 100 - Math.abs(diff-1)*3);
+  if(diff>6 && diff<=16) return Math.max(0, 90 - (diff-6)*3);
+  if(diff>16) return Math.max(20, 60 - (diff-16)*2.5);
+  if(diff<-3 && diff>=-10) return Math.max(0, 75 - Math.abs(diff+3)*4);
+  return Math.max(5, 45 - Math.abs(diff+10)*4);
+}
+
+// ---------- Categoría del club objetivo + tipo de movimiento (trayectoria profesional) ----------
+function detectarCategoriaClubObjetivo(club){
+  const n = normalizarTexto(club.liga);
+  if(n.includes('liga profesional')) return 3;
+  if(n.includes('primera nacional')) return 2;
+  if(n.includes('primera b metro')) return 1;
+  return null; // liga extranjera / no trackeada por categoría: se evalúa solo por nivel numérico
+}
+
+function clasificarMovimiento(nivelLigaActual, club, categoriaInfo){
+  const catClub = detectarCategoriaClubObjetivo(club);
+  if(categoriaInfo.categoriaRank!==null && catClub!==null && catClub < categoriaInfo.categoriaRank){
+    return { tipo:'descenso', icono:'⬇️', texto:'Descenso de categoría' };
+  }
+  const deltaLiga = club.nivelLiga - nivelLigaActual;
+  if(deltaLiga <= -5) return { tipo:'descenso', icono:'⬇️', texto:'Descenso de categoría' };
+  if(deltaLiga > -5 && deltaLiga <= 6) return { tipo:'horizontal', icono:'➡️', texto:'Movimiento horizontal' };
+  if(deltaLiga > 6 && deltaLiga <= 16) return { tipo:'crecimiento', icono:'⬆️', texto:'Crecimiento' };
+  return { tipo:'saltoAmbicioso', icono:'🎯', texto:'Salto ambicioso' };
+}
+
+function pasaFiltroDireccion(movTipo, direccion){
+  if(direccion==='todas') return true;
+  if(direccion==='mantener') return movTipo==='horizontal';
+  if(direccion==='crecimiento') return movTipo==='horizontal' || movTipo==='crecimiento';
+  if(direccion==='ambicioso') return movTipo==='crecimiento' || movTipo==='saltoAmbicioso';
+  return true;
+}
+
+function perfilTacticoJugador(statsFila, rangos){
+  // Índices 0-100 estimados a partir de stats reales
+  const pases = normalizar(valorNumerico(statsFila?.['Pases Precisos %']), rangos['Pases Precisos %']);
+  const duelos = normalizar(valorNumerico(statsFila?.['Duelos Totales%']), rangos['Duelos Totales%']);
+  const intercep = normalizar(valorNumerico(statsFila?.['Intercepciones']), rangos['Intercepciones']);
+  const despejes = normalizar(valorNumerico(statsFila?.['Despejes']), rangos['Despejes']);
+  const goles = normalizar(valorNumerico(statsFila?.['Goles']), rangos['Goles']);
+  const xg = normalizar(valorNumerico(statsFila?.['Xg']), rangos['Xg']);
+  const asist = normalizar(valorNumerico(statsFila?.['Asistencias']), rangos['Asistencias']);
+  const xa = normalizar(valorNumerico(statsFila?.['Xa']), rangos['Xa']);
+
+  const val = (x, d=50) => x===null ? d : x;
+
+  return {
+    posesion: val(pases),
+    salidaCorto: val(pases),
+    juegoAsociado: (val(pases)+val(asist)+val(xa))/3,
+    pressingAlto: (val(duelos)+val(intercep))/2,
+    amplitud: 50,
+    bloqueBajo: (val(despejes)+val(duelos))/2,
+    transicionRapida: (val(goles)+val(xg))/2,
+    juegoDirecto: (val(goles)+val(xg))/2,
+    contragolpe: (val(goles)+val(xg)+val(asist))/3,
+    verticalidad: (val(goles)+val(xg))/2
+  };
+}
+
+const MAPA_TAGS = {
+  'posesión':'posesion','posesion':'posesion',
+  'salida en corto':'salidaCorto',
+  'juego asociado':'juegoAsociado',
+  'pressing alto':'pressingAlto',
+  'amplitud':'amplitud',
+  'bloque bajo':'bloqueBajo',
+  'transición rápida':'transicionRapida','transicion rapida':'transicionRapida',
+  'juego directo':'juegoDirecto',
+  'contragolpe':'contragolpe',
+  'verticalidad':'verticalidad'
+};
+
+function scoreEncajeTactico(estiloClubTexto, perfilJugador){
+  const tags = estiloClubTexto.split('·').map(t=>normalizarNombre(t)).filter(Boolean);
+  if(!tags.length) return { valor:50, tags:[] };
+  let suma = 0, contados = 0;
+  const detalle = [];
+  tags.forEach(tag=>{
+    const key = MAPA_TAGS[tag];
+    if(key && perfilJugador[key]!==undefined){
+      suma += perfilJugador[key];
+      contados++;
+      detalle.push({ tag, valor: perfilJugador[key] });
+    }
+  });
+  const valor = contados ? suma/contados : 50;
+  return { valor, tags: detalle, tagsTexto: tags };
+}
+
+function scoreRendimientoStats(statsFila, grupo, rangos){
+  const cols = statsRelevantesPorPosicion(grupo);
+  const valores = cols.map(c => normalizar(valorNumerico(statsFila?.[c]), rangos[c])).filter(v=>v!==null);
+  if(!valores.length) return null;
+  return valores.reduce((a,b)=>a+b,0)/valores.length;
+}
+
+function scoreContexto(jugadorInfo, club){
+  let score = 50;
+  const edad = valorNumerico(jugadorInfo['Edad']);
+  if(edad!==null){
+    if(edad>=21 && edad<=29) score += 20;
+    else if(edad>=18 && edad<=32) score += 8;
+    else score -= 10;
+  }
+  const nacionalidad = normalizarNombre(jugadorInfo['Nacionalidad']);
+  const paisClub = normalizarNombre(club.pais);
+  if(nacionalidad && paisClub && nacionalidad===paisClub) score += 10;
+  return Math.max(0, Math.min(100, score));
+}
+
+function clasificar(pct){
+  if(pct>=85) return {clave:'excelente', texto:'Encaje excelente'};
+  if(pct>=70) return {clave:'muybueno', texto:'Muy buen encaje'};
+  if(pct>=55) return {clave:'posible', texto:'Encaje posible'};
+  if(pct>=40) return {clave:'bajo', texto:'Encaje bajo'};
+  return {clave:'norecomendable', texto:'Poco recomendable'};
+}
+
+// ---------- Construcción de contexto y evaluación de encaje (compartido por los 2 modos) ----------
+
+function construirContextoJugador(jugadorInfo, rangos){
+  const nombreJugador = jugadorInfo['Jugador'];
+  const grupo = grupoPosicion(jugadorInfo['Posición Principal']);
+  const statsFila = STATE.estadisticas[normalizarNombre(nombreJugador)] || null;
+  const rendimiento = buscarRendimientoJugador(nombreJugador);
+  const perfilTactico = perfilTacticoJugador(statsFila, rangos);
+  const rendStats = scoreRendimientoStats(statsFila, grupo, rangos);
+  const categoriaInfo = determinarCategoriaYNivelBase(jugadorInfo, rendimiento);
+  const nivelInfo = calcularNivelEfectivo(jugadorInfo, rendimiento, grupo, rendStats, categoriaInfo);
+  return { jugadorInfo, grupo, statsFila, rendimiento, perfilTactico, rendStats, categoriaInfo, nivelInfo, nombreJugador };
+}
+
+// Evalúa un club puntual contra un contexto de jugador ya construido. Usado tanto para
+// "Jugador → Clubes" (un jugador fijo, muchos clubes) como para "Club → Jugadores" (un club fijo, muchos jugadores).
+function evaluarEncaje(contexto, club, pesos, direccion, permitirDescensos){
+  const { jugadorInfo, perfilTactico, rendStats, categoriaInfo, nivelInfo } = contexto;
+  const nivelEfectivo = nivelInfo.nivelEfectivo;
+
+  const sVsClub = scoreNivelDestino(nivelEfectivo, club.nivelClub);
+  const sVsLiga = scoreLigaDestino(categoriaInfo.nivelLigaActual, club.nivelLiga);
+  const encajeTact = scoreEncajeTactico(club.estilo, perfilTactico);
+  const sRend = rendStats;
+  const sContexto = scoreContexto(jugadorInfo, club);
+  const movimiento = clasificarMovimiento(categoriaInfo.nivelLigaActual, club, categoriaInfo);
+
+  const subs = [sVsClub, encajeTact.valor, sRend, sVsLiga, sContexto];
+  const disponibles = subs.map((v,i)=> v!==null ? {v, p:pesos[i]} : null).filter(Boolean);
+  const pesoTotal = disponibles.reduce((a,b)=>a+b.p,0) || 1;
+  let pctFinal = disponibles.reduce((a,b)=>a+b.v*b.p,0) / pesoTotal;
+
+  const penalizaciones = [];
+  if(movimiento.tipo==='descenso'){
+    pctFinal *= 0.6; penalizaciones.push('Implica un descenso de categoría respecto a su presente');
+  }
+  if(encajeTact.valor < 35){
+    pctFinal *= 0.85; penalizaciones.push('Perfil táctico poco compatible con el estilo del club');
+  }
+  if(sRend!==null && sRend < 30){
+    pctFinal *= 0.9; penalizaciones.push('Rendimiento/estadísticas por debajo de lo esperado para la posición');
+  }
+
+  pctFinal = Math.max(0, Math.min(100, Math.round(pctFinal)));
+  const clasif = clasificar(pctFinal);
+
+  const positivos = [];
+  if(sVsClub!==null && sVsClub>=75) positivos.push('nivel efectivo bien alineado con el club');
+  if(movimiento.tipo==='crecimiento') positivos.push('representa un paso de crecimiento real');
+  if(encajeTact.valor>=65) positivos.push('fuerte afinidad con el estilo de juego');
+  if(sRend!==null && sRend>=65) positivos.push('estadísticas destacadas para su posición');
+  if(sVsLiga!==null && sVsLiga>=70) positivos.push('la liga objetivo acompaña su crecimiento');
+  if(sContexto>=65) positivos.push('contexto favorable (edad/nacionalidad)');
+
+  const negativos = [];
+  if(sVsClub!==null && sVsClub<50) negativos.push('brecha de nivel con el club');
+  if(movimiento.tipo==='descenso') negativos.push('el club está por debajo de su categoría actual');
+  if(encajeTact.valor<50) negativos.push('estilo de juego no del todo afín');
+  if(sRend!==null && sRend<50) negativos.push('estadísticas por debajo del promedio para su rol');
+  if(sVsLiga!==null && sVsLiga<50) negativos.push('la liga objetivo no acompaña su presente competitivo');
+
+  const pasaFiltro = movimiento.tipo === 'descenso' ? permitirDescensos : pasaFiltroDireccion(movimiento.tipo, direccion);
+
+  return {
+    club, pctFinal, clasif, penalizaciones, positivos, negativos, movimiento,
+    subScores: { sVsClub, encajeTact: encajeTact.valor, sRend, sVsLiga, sContexto },
+    tagsDetalle: encajeTact.tags, tagsTexto: encajeTact.tagsTexto,
+    pasaFiltro
+  };
+}
+
+// ---------- Modo 1: Jugador → Clubes ----------
+
+function correrMatching(){
+  const nombreJugador = document.getElementById('selectJugador').value;
+  const jugadorInfo = STATE.jugadores.find(j => j['Jugador']===nombreJugador);
+  if(!jugadorInfo) return;
+
+  const rangos = calcularRangosStats();
+  const contexto = construirContextoJugador(jugadorInfo, rangos);
+
+  // Todo lo que NO depende de los pesos ni de los filtros de trayectoria se cachea una sola vez acá.
+  // El slider de pesos y los filtros de dirección de carrera solo vuelven a correr recalcularRanking().
+  JUGADOR_ACTUAL = contexto;
+
+  renderFichaNivel();
+  document.getElementById('panelFicha').style.display = 'block';
+  document.getElementById('panelResultados').style.display = 'block';
+  document.getElementById('tituloResultado').textContent = `Ranking de encaje — ${nombreJugador}`;
+
+  recalcularRanking();
+  document.getElementById('panelFicha').scrollIntoView({behavior:'smooth'});
+}
+
+function renderFichaNivel(){
+  const { jugadorInfo, categoriaInfo, nivelInfo } = JUGADOR_ACTUAL;
+  const cont = document.getElementById('fichaNivelGrid');
+  const signo = (v)=> v>=0 ? '+'+v.toFixed(1) : v.toFixed(1);
+  cont.innerHTML = `
+    <div class="ficha-item">
+      <small>Categoría actual</small>
+      <strong style="font-size:14px;">${categoriaInfo.categoriaNombre}</strong>
+    </div>
+    <div class="ficha-item">
+      <small>Nivel base (liga actual)</small>
+      <strong>${categoriaInfo.nivelLigaActual.toFixed(0)}</strong>
+    </div>
+    <div class="ficha-item">
+      <small>Ajuste por rendimiento</small>
+      <strong class="${nivelInfo.ajusteRendimiento>=0?'pos':'neg'}">${signo(nivelInfo.ajusteRendimiento)}</strong>
+    </div>
+    <div class="ficha-item">
+      <small>Ajuste por estadísticas</small>
+      <strong class="${nivelInfo.ajusteEstadisticas>=0?'pos':'neg'}">${signo(nivelInfo.ajusteEstadisticas)}</strong>
+    </div>
+    <div class="ficha-item destacado">
+      <small>Nivel competitivo efectivo</small>
+      <strong>${nivelInfo.nivelEfectivo.toFixed(0)}/100</strong>
+    </div>
+    <div class="ficha-nota">${nivelInfo.detalleRendimiento}${categoriaInfo.estimado ? ' · ⚠️ '+categoriaInfo.detalle : ''}</div>
+  `;
+}
+
+function recalcularRanking(){
+  if(!JUGADOR_ACTUAL) return;
+  const pesos = obtenerPesos();
+  const direccion = document.getElementById('direccionCarrera').value;
+  const permitirDescensos = document.getElementById('permitirDescensos').checked;
+
+  let resultados = STATE.clubes
+    .map(club => evaluarEncaje(JUGADOR_ACTUAL, club, pesos, direccion, permitirDescensos))
+    .filter(r => r.pasaFiltro);
+
+  resultados.sort((a,b)=> b.pctFinal - a.pctFinal);
+
+  ULTIMO_RANKING = resultados;
+  poblarFiltros(resultados);
+  document.getElementById('subResultado').textContent =
+    `${JUGADOR_ACTUAL.jugadorInfo['Posición Principal']||'?'} · Nivel competitivo efectivo: ${JUGADOR_ACTUAL.nivelInfo.nivelEfectivo.toFixed(0)}/100 · ${JUGADOR_ACTUAL.categoriaInfo.categoriaNombre} · ${resultados.length} clubes dentro del filtro actual`;
+  renderRanking();
+}
+
+// ---------- Modo 2: Club → Jugadores (búsqueda inversa de candidatos) ----------
+
+function correrMatchingInverso(){
+  const val = document.getElementById('selectClub').value;
+  if(!val) return;
+  const club = buscarClubPorValorSelect(val);
+  if(!club) return;
+
+  CLUB_ACTUAL = club;
+  renderFichaClub();
+  document.getElementById('panelFicha').style.display = 'block';
+  document.getElementById('panelResultados').style.display = 'block';
+  document.getElementById('tituloResultado').textContent = `Candidatos para ${club.club}`;
+
+  recalcularRankingInverso();
+  document.getElementById('panelFicha').scrollIntoView({behavior:'smooth'});
+}
+
+function renderFichaClub(){
+  const club = CLUB_ACTUAL;
+  const cont = document.getElementById('fichaNivelGrid');
+  cont.innerHTML = `
+    <div class="ficha-item">
+      <small>Club objetivo</small>
+      <strong style="font-size:14px;">${club.club}</strong>
+    </div>
+    <div class="ficha-item">
+      <small>Liga / País</small>
+      <strong style="font-size:14px;">${club.liga||'-'}</strong>
+    </div>
+    <div class="ficha-item">
+      <small>Nivel de Liga</small>
+      <strong>${club.nivelLiga}</strong>
+    </div>
+    <div class="ficha-item destacado">
+      <small>Nivel de Club</small>
+      <strong>${club.nivelClub}</strong>
+    </div>
+    <div class="ficha-nota">Estilo de juego: ${club.estilo || 'sin datos'} — se evalúa cada jugador de tu base de datos contra este club.</div>
+  `;
+}
+
+function tieneDatosMinimos(jugadorInfo){
+  const nombre = normalizarNombre(jugadorInfo['Jugador']);
+  return !!STATE.estadisticas[nombre] || !!buscarRendimientoJugador(jugadorInfo['Jugador']);
+}
+
+function recalcularRankingInverso(){
+  if(!CLUB_ACTUAL) return;
+  const pesos = obtenerPesos();
+  const direccion = document.getElementById('direccionCarrera').value;
+  const permitirDescensos = document.getElementById('permitirDescensos').checked;
+  const posicionBuscada = document.getElementById('selectPosicionBuscada').value;
+  const rangos = calcularRangosStats();
+
+  let candidatos = STATE.jugadores.filter(tieneDatosMinimos);
+  if(posicionBuscada){
+    candidatos = candidatos.filter(j => grupoPosicion(j['Posición Principal']) === posicionBuscada);
+  }
+
+  let resultados = candidatos.map(jugadorInfo=>{
+    const contexto = construirContextoJugador(jugadorInfo, rangos);
+    const r = evaluarEncaje(contexto, CLUB_ACTUAL, pesos, direccion, permitirDescensos);
+    return { ...r, jugadorInfo, contexto };
+  }).filter(r => r.pasaFiltro);
+
+  resultados.sort((a,b)=> b.pctFinal - a.pctFinal);
+
+  ULTIMO_RANKING = resultados;
+  poblarFiltrosInverso(resultados);
+  document.getElementById('subResultado').textContent =
+    `${CLUB_ACTUAL.liga||'-'} · Nivel de Club ${CLUB_ACTUAL.nivelClub} · ${resultados.length} candidatos dentro del filtro actual`;
+  renderRanking();
+}
+
+// ---------- Modo 3: Comparar 2-3 jugadores para el mismo club ----------
+
+function correrComparacion(){
+  const valClub = document.getElementById('selectClubComparar').value;
+  const club = buscarClubPorValorSelect(valClub);
+  const estadoEl = document.getElementById('estadoComparar');
+  if(!club){ estadoEl.innerHTML = '<div class="estado-error">Elegí un club primero.</div>'; return; }
+
+  const nombresTipeados = [
+    document.getElementById('compararJugador1').value.trim(),
+    document.getElementById('compararJugador2').value.trim(),
+    document.getElementById('compararJugador3').value.trim()
+  ].filter(Boolean);
+
+  const noEncontrados = [];
+  const jugadoresEncontrados = [];
+  nombresTipeados.forEach(nombre=>{
+    const match = STATE.jugadores.find(j => normalizarNombre(j['Jugador']) === normalizarNombre(nombre));
+    if(match) jugadoresEncontrados.push(match);
+    else noEncontrados.push(nombre);
+  });
+
+  if(noEncontrados.length){
+    estadoEl.innerHTML = `<div class="estado-error">No encontré en tu base a: ${noEncontrados.join(', ')} — elegí un nombre exacto de la lista.</div>`;
+  } else {
+    estadoEl.innerHTML = '';
+  }
+  if(jugadoresEncontrados.length < 2) return;
+
+  CLUB_ACTUAL = club;
+  const rangos = calcularRangosStats();
+  COMPARAR_ACTUAL = jugadoresEncontrados.map(j => construirContextoJugador(j, rangos));
+
+  renderFichaClub();
+  document.getElementById('panelFicha').style.display = 'block';
+  document.getElementById('panelResultados').style.display = 'block';
+  document.getElementById('tituloResultado').textContent = `Comparación para ${club.club}`;
+  document.getElementById('filtrosJ2C').style.display = 'none';
+  document.getElementById('filtrosC2J').style.display = 'none';
+
+  recalcularComparacion();
+  document.getElementById('panelFicha').scrollIntoView({behavior:'smooth'});
+}
+
+function recalcularComparacion(){
+  if(!CLUB_ACTUAL || !COMPARAR_ACTUAL.length) return;
+  const pesos = obtenerPesos();
+  const direccion = document.getElementById('direccionCarrera').value;
+  const permitirDescensos = document.getElementById('permitirDescensos').checked;
+
+  // En modo comparación se muestran los candidatos que el usuario eligió explícitamente,
+  // sin ocultar por filtro de dirección/categoría — el usuario ya decidió a quiénes quiere ver.
+  const resultados = COMPARAR_ACTUAL.map(contexto => {
+    const r = evaluarEncaje(contexto, CLUB_ACTUAL, pesos, direccion, permitirDescensos);
+    return { ...r, jugadorInfo: contexto.jugadorInfo, contexto };
+  });
+  resultados.sort((a,b)=> b.pctFinal - a.pctFinal);
+
+  ULTIMO_RANKING = resultados;
+  document.getElementById('subResultado').textContent =
+    `${resultados.length} candidatos comparados para ${CLUB_ACTUAL.club}`;
+  renderComparacion();
+}
+
+function renderComparacion(){
+  mostrarNodoConector(false);
+  const cont = document.getElementById('rankingLista');
+  const mejorPct = Math.max(...ULTIMO_RANKING.map(r=>r.pctFinal));
+
+  cont.innerHTML = `<div class="comparar-grid">` + ULTIMO_RANKING.map((r)=>{
+    const j = r.jugadorInfo;
+    const esMejor = r.pctFinal === mejorPct;
+    return `
+    <div class="comparar-col ${esMejor?'top1':''}">
+      ${esMejor ? '<div class="comparar-mejor-tag">⭐ MEJOR OPCIÓN</div>' : ''}
+      <h4>${j['Jugador']}</h4>
+      <small>${j['Posición Principal']||'-'} · ${j['Club']||'-'} · ${j['Edad']||'?'} años</small>
+      <span class="badge-movimiento mov-${r.movimiento.tipo}">${r.movimiento.icono} ${r.movimiento.texto}</span>
+      <div class="pct-box pct-${r.clasif.clave}" style="text-align:center; margin:14px 0;">
+        <strong style="font-size:32px;">${r.pctFinal}%</strong>
+        <small>${r.clasif.texto}</small>
+      </div>
+      <div class="detalle-grid" style="grid-template-columns:1fr;">
+        ${barraSub('Nivel vs Club', r.subScores.sVsClub)}
+        ${barraSub('Encaje táctico', r.subScores.encajeTact)}
+        ${barraSub('Rendimiento/stats', r.subScores.sRend)}
+        ${barraSub('Nivel vs Liga', r.subScores.sVsLiga)}
+        ${barraSub('Contexto', r.subScores.sContexto)}
+      </div>
+      <div class="explicacion-texto" style="margin-top:12px;">
+        ${r.positivos.length ? `<div>✅ ${r.positivos.join(', ')}.</div>` : ''}
+        ${r.negativos.length ? `<div>⚠️ ${r.negativos.join(', ')}.</div>` : ''}
+        ${r.penalizaciones.length ? `<div>🔻 ${r.penalizaciones.join('; ')}.</div>` : ''}
+      </div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+function poblarFiltros(resultados){
+  const ligas = [...new Set(resultados.map(r=>r.club.liga).filter(Boolean))].sort();
+  const paises = [...new Set(resultados.map(r=>r.club.pais).filter(Boolean))].sort();
+  document.getElementById('filtrosJ2C').style.display = 'flex';
+  document.getElementById('filtrosC2J').style.display = 'none';
+  const selLiga = document.getElementById('filtroLiga');
+  const selPais = document.getElementById('filtroPais');
+  selLiga.innerHTML = '<option value="">Todas las ligas</option>' + ligas.map(l=>`<option value="${l}">${l}</option>`).join('');
+  selPais.innerHTML = '<option value="">Todos los países</option>' + paises.map(p=>`<option value="${p}">${p}</option>`).join('');
+}
+
+function poblarFiltrosInverso(resultados){
+  document.getElementById('filtrosJ2C').style.display = 'none';
+  document.getElementById('filtrosC2J').style.display = 'flex';
+}
+
+function colorConectorRanking(idx){
+  const colores = ['rgba(52,224,161,.6)','rgba(93,214,255,.5)','rgba(139,107,255,.5)','rgba(242,193,78,.45)','rgba(255,92,122,.4)'];
+  return colores[Math.min(idx, colores.length-1)];
+}
+
+function renderRanking(){
+  if(MODO_ACTUAL==='j2c') renderRankingJ2C();
+  else if(MODO_ACTUAL==='c2j') renderRankingC2J();
+  else renderComparacion();
+}
+
+function mostrarNodoConector(mostrar){
+  document.getElementById('zonaFlujoResultados').classList.toggle('sin-nodo', !mostrar);
+  document.getElementById('nodoResultadosWrap').style.display = mostrar ? 'flex' : 'none';
+  document.getElementById('svgConectorRanking').style.display = mostrar ? 'block' : 'none';
+}
+
+function renderRankingJ2C(){
+  mostrarNodoConector(true);
+  const filtroLiga = document.getElementById('filtroLiga').value;
+  const filtroPais = document.getElementById('filtroPais').value;
+  const filtroClasif = document.getElementById('filtroClasif').value;
+
+  let lista = ULTIMO_RANKING.filter(r=>{
+    if(filtroLiga && r.club.liga!==filtroLiga) return false;
+    if(filtroPais && r.club.pais!==filtroPais) return false;
+    if(filtroClasif && r.clasif.clave!==filtroClasif) return false;
+    return true;
+  });
+
+  const cont = document.getElementById('rankingLista');
+  if(!lista.length){
+    cont.innerHTML = '<div class="sin-datos">Sin resultados con estos filtros.</div>';
+    dibujarConectores('rankingLista','svgConectorRanking','.card-club', colorConectorRanking);
+    return;
+  }
+
+  cont.innerHTML = lista.map((r, idx)=>{
+    const id = 'detalle_'+idx;
+    const escudoHtml = r.club.escudo ? `<img class="escudo" src="${r.club.escudo}" onerror="this.style.display='none'">` : '<div class="escudo"></div>';
+    return `
+    <div class="card-club ${idx===0?'top1':''}" onclick="toggleDetalle('${id}')">
+      <div class="pos-num">${idx+1}</div>
+      ${escudoHtml}
+      <div class="info-club">
+        <h4>${r.club.club}</h4>
+        <small>${r.club.pais||'-'} · ${r.club.liga||'-'} · Nivel Liga ${r.club.nivelLiga} · Nivel Club ${r.club.nivelClub}</small><br>
+        <span class="badge-movimiento mov-${r.movimiento.tipo}">${r.movimiento.icono} ${r.movimiento.texto}</span>
+      </div>
+      <div class="pct-box pct-${r.clasif.clave}">
+        <strong>${r.pctFinal}%</strong>
+        <small>${r.clasif.texto}</small>
+        <div class="barra-pct"><div class="barra-pct-fill fill-${r.clasif.clave}" style="width:${r.pctFinal}%"></div></div>
+      </div>
+      ${detalleClubHtml(r, id)}
+    </div>`;
+  }).join('');
+
+  requestAnimationFrame(()=> dibujarConectores('rankingLista','svgConectorRanking','.card-club', colorConectorRanking));
+}
+
+function renderRankingC2J(){
+  mostrarNodoConector(true);
+  const filtroPos = document.getElementById('filtroPosicionResultado').value;
+  const filtroClasif = document.getElementById('filtroClasifC2J').value;
+  const buscar = normalizarNombre(document.getElementById('buscarEnResultado').value);
+
+  let lista = ULTIMO_RANKING.filter(r=>{
+    if(filtroPos && r.contexto.grupo !== filtroPos) return false;
+    if(filtroClasif && r.clasif.clave!==filtroClasif) return false;
+    if(buscar && !normalizarNombre(r.jugadorInfo['Jugador']).includes(buscar)) return false;
+    return true;
+  });
+
+  const cont = document.getElementById('rankingLista');
+  if(!lista.length){
+    cont.innerHTML = '<div class="sin-datos">Sin candidatos con estos filtros.</div>';
+    dibujarConectores('rankingLista','svgConectorRanking','.card-club', colorConectorRanking);
+    return;
+  }
+
+  cont.innerHTML = lista.map((r, idx)=>{
+    const id = 'detalle_'+idx;
+    const j = r.jugadorInfo;
+    return `
+    <div class="card-club ${idx===0?'top1':''}" onclick="toggleDetalle('${id}')">
+      <div class="pos-num">${idx+1}</div>
+      <div class="escudo"></div>
+      <div class="info-club">
+        <h4>${j['Jugador']}</h4>
+        <small>${j['Posición Principal']||'-'} · ${j['Club']||'-'} · ${j['Edad']||'?'} años · Nivel efectivo ${r.contexto.nivelInfo.nivelEfectivo.toFixed(0)}</small><br>
+        <span class="badge-movimiento mov-${r.movimiento.tipo}">${r.movimiento.icono} ${r.movimiento.texto}</span>
+      </div>
+      <div class="pct-box pct-${r.clasif.clave}">
+        <strong>${r.pctFinal}%</strong>
+        <small>${r.clasif.texto}</small>
+        <div class="barra-pct"><div class="barra-pct-fill fill-${r.clasif.clave}" style="width:${r.pctFinal}%"></div></div>
+      </div>
+      ${detalleClubHtml(r, id)}
+    </div>`;
+  }).join('');
+
+  requestAnimationFrame(()=> dibujarConectores('rankingLista','svgConectorRanking','.card-club', colorConectorRanking));
+}
+
+function detalleClubHtml(r, id){
+  return `
+      <div class="detalle-club" id="${id}">
+        <div class="detalle-grid">
+          ${barraSub('Nivel vs Club', r.subScores.sVsClub)}
+          ${barraSub('Encaje táctico', r.subScores.encajeTact)}
+          ${barraSub('Rendimiento/stats', r.subScores.sRend)}
+          ${barraSub('Nivel vs Liga', r.subScores.sVsLiga)}
+          ${barraSub('Contexto', r.subScores.sContexto)}
+        </div>
+        <div class="explicacion-texto">
+          <strong>¿Por qué encaja así?</strong>
+          ${r.positivos.length ? `<div>✅ A favor: ${r.positivos.join(', ')}.</div>` : ''}
+          ${r.negativos.length ? `<div>⚠️ En contra: ${r.negativos.join(', ')}.</div>` : ''}
+          ${r.penalizaciones.length ? `<div>🔻 Penalizaciones aplicadas: ${r.penalizaciones.join('; ')}.</div>` : ''}
+        </div>
+        <div class="tags-club">Estilo del club: ${r.tagsTexto.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      </div>`;
+}
+
+function barraSub(nombre, valor){
+  const v = valor===null || valor===undefined ? null : Math.round(valor);
+  return `<div class="sub-score">
+    <small>${nombre}</small>
+    <strong>${v!==null ? v+'/100' : 'N/D'}</strong>
+    <div class="barra"><div class="barra-fill" style="width:${v||0}%"></div></div>
+  </div>`;
+}
+
+function toggleDetalle(id){
+  document.getElementById(id).classList.toggle('abierto');
+  const svgId = document.getElementById('rankingLista').contains(document.getElementById(id)) ? 'svgConectorRanking' : null;
+  requestAnimationFrame(()=>{
+    if(document.getElementById('panelResultados').style.display!=='none'){
+      dibujarConectores('rankingLista','svgConectorRanking','.card-club', colorConectorRanking);
+    }
+  });
+}
+
+// Antes de imprimir, se despliegan todas las explicaciones colapsadas para que el PDF
+// salga completo (nadie va a poder hacer click en un PDF impreso).
+function exportarPDF(){
+  document.querySelectorAll('.detalle-club').forEach(d => d.classList.add('abierto'));
+  window.print();
+}
+
+// ---------- Conectores tipo "árbol neuronal" (nodo central -> cada fila) ----------
+function dibujarConectores(contenedorId, svgId, selectorFilas, colorFn){
+  const wrap = document.querySelector('#'+svgId)?.closest('.zona-flujo');
+  const svg = document.getElementById(svgId);
+  const cont = document.getElementById(contenedorId);
+  if(!wrap || !svg || !cont) return;
+  const nodo = wrap.querySelector('.nodo-central');
+  if(!nodo) return;
+
+  const wrapRect = wrap.getBoundingClientRect();
+  const nodoRect = nodo.getBoundingClientRect();
+  const startX = nodoRect.right - wrapRect.left;
+  const startY = nodoRect.top - wrapRect.top + nodoRect.height/2;
+
+  svg.setAttribute('width', wrapRect.width);
+  svg.setAttribute('height', wrapRect.height);
+  svg.setAttribute('viewBox', `0 0 ${wrapRect.width} ${wrapRect.height}`);
+
+  const filas = cont.querySelectorAll(selectorFilas);
+  let paths = '';
+  filas.forEach((fila, idx)=>{
+    const r = fila.getBoundingClientRect();
+    const endX = r.left - wrapRect.left;
+    const endY = r.top - wrapRect.top + Math.min(28, r.height/2);
+    const midX = startX + (endX-startX)*0.5;
+    const color = colorFn ? colorFn(idx) : 'rgba(139,107,255,.5)';
+    paths += `<path d="M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}"
+      stroke="${color}" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+  });
+  svg.innerHTML = paths;
+}
+// Puente de integración con SCOUTPRO: recibe la Base Madre ya cargada, sin importar Excel.
+window.addEventListener('message', function(event){
+  if(event.origin !== 'https://fb-scouting.github.io' || !event.data || event.data.type !== 'scoutpro:base-madre') return;
+  const db = event.data.db;
+  if(!db || !Array.isArray(db.players) || !Array.isArray(db.clubs)) return;
+  try {
+    STATE.jugadores = db.players.map(p => ({
+      'Jugador': p.n, 'Posición Principal': p.pos, 'Posición Secundaria': p.pos2,
+      'Club': p.club, 'Edad': p.ed, 'Competencia': p.comp, 'Nacionalidad': p.nac,
+      'Pie hábil': p.pie, 'Valor de mercado': p.vm, 'Fecha de nacimiento': p.fn,
+      'Representante': p.rep, 'Altura': p.alt, 'Tier': p.tier
+    })).filter(p => p['Jugador']);
+    STATE.estadisticas = {};
+    Object.entries(db.st || {}).forEach(([name, s]) => {
+      if(!s) return;
+      STATE.estadisticas[normalizarNombre(name)] = {
+        'Jugador': name, 'Club': s.club, 'PJ': s.pj, 'Minutos': s.min,
+        'Goles': s.g, 'Asistencias': s.a, 'Pases Precisos %': s.pa,
+        'Duelos Totales%': s.du, 'Aereos %': s.ae, 'Intercepciones': s.ic,
+        'Despejes': s.de, 'Xg': s.xg, 'Xa': s.xa,
+        'Amarillas': s.am, 'Rojas': s.ro
+      };
+    });
+    STATE.clubes = db.clubs.filter(c => c && c.c).map(c => ({
+      club: c.c, liga: c.l, pais: c.p, estilo: (c.e || '').toString(),
+      escudo: c.u || '', nivelLiga: Number(c.nl) || 0, nivelClub: Number(c.nc) || 0
+    }));
+    const nombresHoja = {LP:'Liga Profesional - 2 da parte', PN:'Primera Nacional', PB:'Primera B Metro', TP:'Torneo Proyeccion'};
+    const agrupado = {};
+    Object.entries(db.seg || {}).forEach(([nombre, filas]) => {
+      (filas || []).forEach(r => {
+        const hoja = nombresHoja[r.k] || r.k || 'Rendimiento';
+        (agrupado[hoja] = agrupado[hoja] || []).push({
+          'Jugador': nombre, 'PROM.': r.prog, 'Progreso': r.prog,
+          'Club': r.club, 'Posición': r.pos
+        });
+      });
+    });
+    STATE.hojasRendimiento = Object.entries(agrupado).map(([nombre, filas]) => ({nombre, filas}));
+    document.getElementById('estadoCarga').innerHTML = '<div class="estado-carga">Base Madre de SCOUTPRO recibida correctamente.</div>';
+    document.getElementById('mensajeInicial').style.display = 'none';
+    const panelCargaExcel = document.getElementById('inputExcel')?.closest('.panel');
+    if(panelCargaExcel) panelCargaExcel.style.display = 'none';
+    document.getElementById('panelModo').style.display = 'block';
+    document.getElementById('panelJugador').style.display = 'block';
+    poblarSelectJugadores(); poblarSelectClubes(); poblarDatalistJugadores();
+    event.source.postMessage({type:'scoutpro:matching-ready', players:STATE.jugadores.length, clubs:STATE.clubes.length}, event.origin);
+  } catch(error) {
+    console.error('Error integrando Base Madre de SCOUTPRO:', error);
+    document.getElementById('estadoCarga').innerHTML = '<div class="estado-error">No se pudo adaptar la Base Madre: ' + String(error.message || error) + '</div>';
+  }
+});
+</script>
+</body>
+</html>
