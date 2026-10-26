@@ -88,11 +88,10 @@ body.pb #bpr{display:block;font:12px/1.4 Arial,sans-serif;color:#000;background:
 <a data-v="comparador"><i>⇄</i><span>Comparador de Jugadores</span></a><a data-v="partidos"><i>▦</i><span>Partidos Observados</span></a>
 <a data-v="total"><i>☰</i><span>Total de Jugadores</span></a><a data-v="buscador"><i>⌕</i><span>Buscador avanzado</span></a><a data-v="oport"><i>◉</i><span>Oportunidades de mercado<small id="mkBadge" style="display:block;font-size:11px"></small></span></a><hr>
 <a data-v="ligas"><i>◈</i><span>Ligas</span></a><a data-v="informes" aria-expanded="false" aria-controls="subInf"><i>▤</i><span class="nv">Informes<em id="chInf" class="ch">▸</em></span></a><div id="subInf" class="sub"><a class="s" data-v="ibruto" title="Informe Bruto"><i>◦</i><span>Informe Bruto</span></a><a class="s" data-v="ineto" title="Informe Neto"><i>◦</i><span>Informe Neto</span></a><a class="s" data-v="igen" title="Generador de informes"><i>◦</i><span>Generador de informes</span></a></div><a data-v="bd"><i>⛁</i><span>Base de Datos</span></a>
-<a data-v="rep"><i>▥</i><span>Reportes</span></a><a data-v="scoutai"><i>✦</i><span>Asistente IA</span></a></nav>
+<a data-v="rep"><i>▥</i><span>Reportes</span></a></nav>
 <main>
 <section class="view" id="v-home"><div class="hm" id="hm"></div></section>
-<section class="view" id="v-scoutai"><div class="card" style="max-width:900px;margin:10px auto;padding:18px"><h2>SCOUTPRO IA · Asistente de scouting</h2><p class="mu">Asistente de consulta y borradores. No modifica ni elimina jugadores, informes ni datos guardados.</p><div id="scoutai-status" class="mu" style="margin:8px 0">Usa tu sesión activa de SCOUTPRO.</div><label for="scoutai-query" style="display:block;margin:12px 0 6px">Consulta de scouting</label><textarea id="scoutai-query" rows="5" maxlength="12000" placeholder="Ej.: Con estas observaciones, redactá un análisis táctico diferenciando hechos e inferencias." style="width:100%;background:var(--pn2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:10px;font:inherit;resize:vertical"></textarea><div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button class="btn on" id="scoutai-send">Consultar asistente</button><button class="btn" id="scoutai-clear">Limpiar</button></div><div id="scoutai-answer" style="white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55"></div><p class="mu" style="font-size:12px;margin-top:14px">Privacidad: solo se envía a Gemini el texto que escribas y envíes. Evitá datos personales o sensibles innecesarios.</p></div></section>
-<section class="view" id="v-inicio"><div class="grid">
+<section class="view" id="v-scoutai"><div class="card" st
 <div class="card" style="grid-column:1/9"><div class="ficha" id="ficha"></div></div>
 <div class="card" style="grid-column:9/13"><h2>Estado de progreso y evolución</h2><div id="evTag"></div><div style="height:170px"><canvas id="cEv"></canvas></div></div>
 <div class="card" style="grid-column:1/6"><h2>Encaje en sistemas tácticos</h2><div class="mu" style="margin-bottom:8px;font-size:12px">Perfil ideal según posición y estadísticas · <span id="fitNote"></span></div><div class="fit"><svg class="pitch" id="pitch" viewBox="0 0 100 140"></svg><div id="fitList"></div></div></div>
@@ -784,27 +783,4 @@ $('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')
  const m=await Store.get('mother');if(m&&m.db){applyMother(m.db,m.meta)}}catch(e){toast('Almacenamiento local no disponible: los datos no se conservarán')}
  chip();show('home');clInit()})();
 
-// SCOUTPRO IA: módulo aislado, solo consulta/borradores; no escribe en la base.
-(function initScoutProAI(){
- const $ai=id=>document.getElementById(id);
- function aiStatus(t){const e=$ai("scoutai-status");if(e)e.textContent=t}
- function aiInit(){const send=$ai("scoutai-send"),query=$ai("scoutai-query"),answer=$ai("scoutai-answer"),clear=$ai("scoutai-clear");if(!send||send.dataset.ready)return;send.dataset.ready="1";
- clear.onclick=()=>{query.value="";answer.textContent="";aiStatus("Listo para una nueva consulta.")};
- send.onclick=async()=>{const q=query.value.trim();if(!q){aiStatus("Escribí una consulta antes de enviar.");return}
- if(typeof CL==="undefined"||!CL.sess||!CL.sess.access||!CL.cfg||!CL.cfg.key){aiStatus("Iniciá sesión en la nube de SCOUTPRO y volvé a intentarlo.");return}
- send.disabled=true;answer.textContent="";aiStatus("Consultando Gemini…");
- try{const response=await fetch("https://iuufnafevroywwbcafgp.supabase.co/functions/v1/scoutpro-ai",{method:"POST",headers:{"Content-Type":"application/json","apikey":CL.cfg.key,"Authorization":"Bearer "+CL.sess.access},body:JSON.stringify({query:q,context:(()=>{try{
- const safeList=(v,n=35)=>Array.isArray(v)?v.slice(-n).map(x=>{if(!x||typeof x!=="object")return x;const y={...x};delete y.data;delete y.blob;delete y.fileData;return y}):v;
- const players=(typeof DB!=="undefined"&&DB&&Array.isArray(DB.players))?DB.players.slice(0,180).map(p=>{const m=(U&&U.market&&U.market[p.n])||{};let rs=null;try{const x=rstat(p.n);rs={partidos_con_nota:x.n,promedio:x.avg,tendencia:x.tr}}catch(e){};return {jugador:p.n,club:p.club,posicion:p.pos,edad:p.ed,contrato_hasta:p.fc,valor_mercado:p.vm,representante:p.rep,estado_mercado:m.estado||"sin_registro",motivo_salida:m.motivo||null,fuente:m.fuente||null,actualizado:m.fecha||null,revision_automatica:rs,estadisticas:(DB.st&&DB.st[p.n])||{}}}):[];
- const sections={};if(typeof U!=="undefined"&&U)for(const k of Object.keys(U)){if(k==="photos"||k==="files")continue;const v=U[k];sections[k]=Array.isArray(v)?safeList(v):v&&typeof v==="object"?Object.fromEntries(Object.entries(v).slice(-60)):v}
- const payload={fuente:"SCOUTPRO; datos disponibles en esta sesión",secciones:sections,base_madre:{disponible:players.length>0,total_jugadores:(typeof DB!=="undefined"&&DB&&Array.isArray(DB.players))?DB.players.length:0,jugadores:players,estadisticas_disponibles:typeof DB!=="undefined"&&!!(DB&&DB.st)},oportunidades_de_mercado:sections.market||{},informes:sections.informes||[],informes_brutos:sections.brutos||[],informes_netos:sections.ineto||[],informes_generados:sections.igen||[],partidos_observados:sections.matches||[],agenda:sections.agenda||[],busquedas:sections.searches||[],revisiones_mercado:sections.mkrev||{}};
- let out=JSON.stringify(payload);if(out.length>28000){payload.base_madre.jugadores=players.slice(0,70);for(const k of ["informes","informes_brutos","informes_netos","informes_generados","partidos_observados","agenda","busquedas"]){if(Array.isArray(payload[k]))payload[k]=payload[k].slice(-12)}for(const k of Object.keys(payload.secciones||{})){if(Array.isArray(payload.secciones[k]))payload.secciones[k]=payload.secciones[k].slice(-12)}out=JSON.stringify(payload)}
- return out.length>29500?out.slice(0,29500):out
- }catch(e){return JSON.stringify({error_contexto:"No se pudo compilar el contexto de SCOUTPRO",detalle:String(e).slice(0,160)})}})()});
- const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||"No se pudo conectar con el asistente (HTTP "+response.status+").");answer.textContent=data.answer||"No llegó una respuesta de texto.";aiStatus("Respuesta recibida. Revisá el contenido antes de incorporarlo a un informe.");
- }catch(e){aiStatus("No se pudo completar la consulta: "+(e.message||"error de conexión"));}finally{send.disabled=false}
- };
- }
- const observer=new MutationObserver(()=>{if($ai("v-scoutai"))aiInit()});observer.observe(document.body,{childList:true,subtree:true});aiInit();
-})();
 </script></body></html>
