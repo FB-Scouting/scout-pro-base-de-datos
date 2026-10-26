@@ -1654,7 +1654,8 @@ window.addEventListener('message', function(event){
     STATE.hojasRendimiento = Object.entries(agrupado).map(([nombre, filas]) => ({nombre, filas}));
     document.getElementById('estadoCarga').innerHTML = '<div class="estado-carga">Base Madre de SCOUTPRO recibida correctamente.</div>';
     document.getElementById('mensajeInicial').style.display = 'none';
-    document.getElementById('panelExcel').style.display = 'none';
+    const panelCargaExcel = document.getElementById('inputExcel')?.closest('.panel');
+    if(panelCargaExcel) panelCargaExcel.style.display = 'none';
     document.getElementById('panelModo').style.display = 'block';
     document.getElementById('panelJugador').style.display = 'block';
     poblarSelectJugadores(); poblarSelectClubes(); poblarDatalistJugadores();
