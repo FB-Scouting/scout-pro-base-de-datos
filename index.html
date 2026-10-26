@@ -802,7 +802,7 @@ $('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')
     try{
      const ctx=(()=>{
       try{
-       const qTerms=q.toLocaleLowerCase("es").split(/[^\\p{L}\\p{N}]+/u).filter(w=>w.length>3);
+       const qTerms=q.toLocaleLowerCase("es").split(/[^a-z0-9áéíóúüñ]+/i).filter(w=>w.length>3);
        const compact=(v,depth=0)=>{
         if(v===null||v===undefined||typeof v==="number"||typeof v==="boolean")return v;
         if(typeof v==="string")return v.length>350?v.slice(0,350)+"…":v;
