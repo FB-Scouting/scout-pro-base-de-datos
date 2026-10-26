@@ -838,8 +838,8 @@ $('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')
           }
          }
         }
-        sections.oportunidades_mercado_posible=marketPlayers;
-        const payload={fuente:"SCOUTPRO: registros de las secciones cargadas en esta sesión",secciones:sections,base_madre:{total_jugadores:DB&&Array.isArray(DB.players)?DB.players.length:0,jugadores:players},instruccion:"Usa tanto secciones como base_madre y oportunidades_mercado_posible. Para consultas de posible salida, enumera los jugadores de oportunidades_mercado_posible con club y motivo disponible; diferencia estado registrado de sugerencia automática. No respondas solo con un total. No inventes motivos ni nombres."};
+        const allSections={oportunidades_mercado_posible:marketPlayers,...sections};
+        const payload={fuente:"SCOUTPRO: registros de las secciones cargadas en esta sesión",secciones:allSections,base_madre:{total_jugadores:DB&&Array.isArray(DB.players)?DB.players.length:0,jugadores:players},instruccion:"Usa tanto secciones como base_madre y oportunidades_mercado_posible. Para consultas de posible salida, enumera los jugadores de oportunidades_mercado_posible con club y motivo disponible; diferencia estado registrado de sugerencia automática. No respondas solo con un total. No inventes motivos ni nombres."};
        let out=JSON.stringify(payload);
        if(out.length>27000){
         for(const k of Object.keys(sections))if(Array.isArray(sections[k]))sections[k]=sections[k].slice(-3);
