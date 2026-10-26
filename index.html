@@ -838,8 +838,19 @@ $('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')
           }
          }
         }
-        const allSections={oportunidades_mercado_posible:marketPlayers,...sections};
-        const payload={fuente:"SCOUTPRO: registros de las secciones cargadas en esta sesión",secciones:allSections,base_madre:{total_jugadores:DB&&Array.isArray(DB.players)?DB.players.length:0,jugadores:players},instruccion:"Usa tanto secciones como base_madre y oportunidades_mercado_posible. Para consultas de posible salida, enumera TODOS los jugadores de oportunidades_mercado_posible con club y motivo disponible; diferencia estado registrado de sugerencia automática. La respuesta debe contener una lista con viñetas, no solo un encabezado ni un total. Si la lista está vacía, dilo explícitamente. No inventes motivos ni nombres."};
+        const queryPlayers=[];
+        if(typeof DB!=="undefined"&&DB&&Array.isArray(DB.players)){
+         for(const p of DB.players){
+          const name=String(p.n||"").toLocaleLowerCase("es");
+          if(name.length>3&&q.toLocaleLowerCase("es").includes(name)){
+           const reports=U.informes.filter(x=>String(x.jugador||"").toLocaleLowerCase("es")===name).map(x=>({tipo:"informe_evaluacion",fecha:x.fecha,partido:(U.matches.find(m=>m.id===x.matchId)||{}),posicion:x.posEval,observaciones:x.obs,fisico:x.fis,psicologico:x.psi,fortalezas:x.fort,debilidades:x.deb,conclusion:x.concl,recomendacion:x.rec,mercado_objetivo:x.mercadoObj,rating:x.rating}));
+           const raw=U.brutos.filter(x=>String(x.jugador||"").toLocaleLowerCase("es")===name).map(x=>({tipo:"informe_bruto",fecha:x.fecha,competencia:x.comp,local:x.local,visitante:x.visit,resultado:x.res,formacion:x.formacion,linea:x.linea,rol:x.rol,observaciones:x.obs,criterios:x.crit,promedio:x.promedio}));
+           queryPlayers.push({jugador:p.n,club_base:p.club,posicion_base:p.pos,edad:p.ed,contrato_hasta:p.fc,valor_mercado:p.vm,informes:reports,informes_brutos:raw});
+          }
+         }
+        }
+        const allSections={jugadores_mencionados_en_consulta:queryPlayers,oportunidades_mercado_posible:marketPlayers,...sections};
+        const payload={fuente:"SCOUTPRO: registros de las secciones cargadas en esta sesión",secciones:allSections,base_madre:{total_jugadores:DB&&Array.isArray(DB.players)?DB.players.length:0,jugadores:players},instruccion:"Responde según la intención de la consulta. Si pide redactar un informe bruto, usa solo jugadores_mencionados_en_consulta, informes e informes_brutos. No inventes observaciones de campo, atributos ni datos contractuales. Si no hay observaciones registradas para un jugador, indícalo claramente y solicita esas observaciones; puedes organizar una plantilla, pero no presentes datos inventados como hechos. Para consultas de mercado, enumera jugadores con su estado y evidencia. Nunca respondas solo con un encabezado o un total."};
        let out=JSON.stringify(payload);
        if(out.length>27000){
         for(const k of Object.keys(sections))if(Array.isArray(sections[k]))sections[k]=sections[k].slice(-3);
