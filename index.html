@@ -237,7 +237,8 @@ function applyBranding(){
  const color=(v,d)=>/^#[0-9a-f]{6}$/i.test(String(v||''))?v:d;
  root.style.setProperty('--gr',color(b.primary,BRAND_DEFAULT.primary));root.style.setProperty('--gr2',color(b.secondary,BRAND_DEFAULT.secondary));
  const bg=b.backgroundData||b.backgroundUrl||'';const strength=Math.max(0,Math.min(100,Number(b.backgroundOpacity??55)))/100;
- document.body.style.backgroundImage=bg?'linear-gradient(rgba(10,17,31,'+(1-strength)+'),rgba(10,17,31,'+(1-strength)+')),url("'+String(bg).replace(/["\\\\]/g,'')+'")':'';
+ const safeBg=/^https?:\\/\\//i.test(bg)?String(bg).replace(/[()\\s]/g,c=>encodeURIComponent(c)):/^data:image\\/(jpeg|png|webp);base64,/i.test(bg)?bg:'';
+ document.body.style.backgroundImage=safeBg?'linear-gradient(rgba(10,17,31,'+(1-strength)+'),rgba(10,17,31,'+(1-strength)+')),url("'+safeBg+'")':'';
  document.body.style.backgroundSize=bg?'cover':'';document.body.style.backgroundPosition=bg?'center center':'';document.body.style.backgroundAttachment=bg?'fixed':'';
  const h=$('#brandHeader');if(h){h.innerHTML='';const logo=b.logoData||b.logoUrl;if(logo){const im=document.createElement('img');im.src=logo;im.alt='Logo institucional';h.appendChild(im)}const name=document.createElement('span');name.textContent=b.name||'SCOUTPRO';h.appendChild(name);const tag=document.createElement('small');tag.textContent='SCOUTPRO';h.appendChild(tag)}
 }
@@ -252,7 +253,7 @@ function renderBranding(){
  $('#brandLogoFile').onchange=e=>readImage(e.target.files[0],v=>{U.branding.institutional=Object.assign(brandData(),{logoData:v,logoUrl:''});brandPreview('#brandLogoPreview',v,'Logo');applyBranding()});
  $('#brandBgFile').onchange=e=>readImage(e.target.files[0],v=>{U.branding.institutional=Object.assign(brandData(),{backgroundData:v,backgroundUrl:''});brandPreview('#brandBgPreview',v,'Fondo');applyBranding()});
  $('#brandSave').onclick=async()=>{const hex=(v,d)=>/^#[0-9a-f]{6}$/i.test(v||'')?v:d;const old=brandData();
-  U.branding.institutional={name:$('#brandName').value.trim(),type:$('#brandType').value,primary:hex($('#brandPrimaryHex').value,old.primary),secondary:hex($('#brandSecondaryHex').value,old.secondary),logoUrl:$('#brandLogoUrl').value.trim(),logoData:old.logoData,backgroundUrl:$('#brandBgUrl').value.trim(),backgroundData:old.backgroundData,backgroundOpacity:+$('#brandOpacity').value};
+  const logoUrl=$('#brandLogoUrl').value.trim(),backgroundUrl=$('#brandBgUrl').value.trim();if((logoUrl&&!/^https?:\\/\\//i.test(logoUrl))||(backgroundUrl&&!/^https?:\\/\\//i.test(backgroundUrl))){toast('Las URL de imágenes deben comenzar con https:// o http://');return}\n  U.branding.institutional={name:$('#brandName').value.trim(),type:$('#brandType').value,primary:hex($('#brandPrimaryHex').value,old.primary),secondary:hex($('#brandSecondaryHex').value,old.secondary),logoUrl,logoData:old.logoData,backgroundUrl,backgroundData:old.backgroundData,backgroundOpacity:+$('#brandOpacity').value};
   if(U.branding.institutional.logoUrl)U.branding.institutional.logoData='';if(U.branding.institutional.backgroundUrl)U.branding.institutional.backgroundData='';
   applyBranding();const ok=await saveU('branding');$('#brandCloudState').textContent=cloudReady()?'Guardado · sincronizando con Nube':'Guardado localmente · falta iniciar sesión en Nube';toast(ok?(cloudReady()?'Configuración guardada; sincronizando con la nube':'Configuración guardada en este navegador'):'No se pudo guardar la configuración');
  };
@@ -261,7 +262,7 @@ function renderBranding(){
 }
 \nfunction show(v){const nav=v;v=({jugadores:'inicio',rep:'reportes'})[v]||v;S.view=v;updateBadge();if(INF[v]||v==='ibruto')S.sub=true;syncSub();const views={home:renderHome,inicio:renderInicio,total:renderTotal,comparador:renderCmp,partidos:renderPartidos,ligas:renderLigas,bd:renderBD,config:renderBranding,informes:renderInformes,reportes:renderReportes,buscador:renderBuscador,destino:renderDestino,oport:renderOport,ibruto:renderBruto,ineto:()=>renderExt('ineto'),igen:()=>renderExt('igen'),scoutai:()=>{}};
  document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===nav||(nav==='inicio'&&a.dataset.v==='jugadores')));
- const gate=!DB&&v!=='bd'&&v!=='scoutai'&&!INF[v],id=gate||!views[v]?'soon':v;$('#v-'+id).classList.add('on');
+ const gate=!DB&&v!=='bd'&&v!=='config'&&v!=='scoutai'&&!INF[v],id=gate||!views[v]?'soon':v;$('#v-'+id).classList.add('on');
  if(id==='soon'){$('#soonT').textContent=gate?'Base madre no cargada':'Sin datos';$('#soonB').innerHTML=gate?'Cargá tu Excel madre para armar jugadores, estadísticas y seguimiento.<p><button class="btn" onclick="pickExcel()">📁 Cargar Excel</button></p>':'Esta sección no tiene datos en la base madre.'}else views[v]()}
 function renderDestino(){const fr=$('#destinoFrame');$('#destinoStatus').textContent='Enviando Base Madre…';const send=()=>{if(!DB){$('#destinoStatus').textContent='Primero cargá o sincronizá la Base Madre';return}try{fr.contentWindow.postMessage({type:'scoutpro:base-madre',db:DB,meta:META},'https://fb-scouting.github.io')}catch(e){$('#destinoStatus').textContent='No se pudo enviar la Base Madre'}};fr.onload=send; if(fr.contentWindow)send()}
 let pendingExternalBruto=null;
