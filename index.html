@@ -229,9 +229,19 @@ function show(v){const nav=v;v=({jugadores:'inicio',rep:'reportes'})[v]||v;S.vie
  const gate=!DB&&v!=='bd'&&v!=='scoutai'&&!INF[v],id=gate||!views[v]?'soon':v;$('#v-'+id).classList.add('on');
  if(id==='soon'){$('#soonT').textContent=gate?'Base madre no cargada':'Sin datos';$('#soonB').innerHTML=gate?'Cargá tu Excel madre para armar jugadores, estadísticas y seguimiento.<p><button class="btn" onclick="pickExcel()">📁 Cargar Excel</button></p>':'Esta sección no tiene datos en la base madre.'}else views[v]()}
 function renderDestino(){const fr=$('#destinoFrame');$('#destinoStatus').textContent='Enviando Base Madre…';const send=()=>{if(!DB){$('#destinoStatus').textContent='Primero cargá o sincronizá la Base Madre';return}try{fr.contentWindow.postMessage({type:'scoutpro:base-madre',db:DB,meta:META},'https://fb-scouting.github.io')}catch(e){$('#destinoStatus').textContent='No se pudo enviar la Base Madre'}};fr.onload=send; if(fr.contentWindow)send()}
+let pendingExternalBruto=null;
+function sendToExternalBruto(record,player){
+ const frame=$('#xf_ibext');
+ pendingExternalBruto={record,player:player?{
+  nombre:player.n,club:player.club||'',foto:getPlayerPhoto(player.n)||'',escudo:getClubCrest(player.club)||'',
+  fnac:player.fn||'',edad:player.ed??'',nacionalidad:player.nac||'',posicion:player.pos||'',pie:player.pie||'',altura:player.alt||''
+ }:null};
+ if(frame&&frame.contentWindow)frame.contentWindow.postMessage({type:'scoutpro-report:fill-external-bruto',module:'scoutpro',payload:pendingExternalBruto},'https://fb-scouting.github.io');
+}
 window.addEventListener('message',e=>{if(e.origin!=='https://fb-scouting.github.io'||!e.data)return;
  if(e.data.type==='scoutpro:matching-ready')$('#destinoStatus').textContent='Base Madre conectada ✓ · '+e.data.players+' jugadores';
- if(e.data.type==='scoutpro-report:to-bruto'&&e.data.module==='igen'){const p=e.data.record||{};if(!p.jugador)return;const apply=()=>{const jugador=DB.players.find(x=>nkey(x.n)===nkey(p.jugador));S.br=brBlank();S.br.jugador=jugador?jugador.n:p.jugador;S.br.generador={perfil:p.perfil||{},conclusion:p.conclusion||{}};S.brRef=brSnap(S.br);show('ibruto');toast(jugador?'Jugador identificado en Base Madre. Revisá el Informe Bruto y guardalo.':'Informe transferido. El jugador no figura en Base Madre; verificá su identificación antes de guardar.')};if(S.br&&brDirty())askConfirm('Tenés un Informe Bruto sin guardar. ¿Reemplazarlo?',apply);else apply()}
+ if(e.data.type==='scoutpro-report:external-bruto-ready'){const f=$('#xf_ibext');if(pendingExternalBruto&&f&&e.source===f.contentWindow)f.contentWindow.postMessage({type:'scoutpro-report:fill-external-bruto',module:'scoutpro',payload:pendingExternalBruto},'https://fb-scouting.github.io')}
+ if(e.data.type==='scoutpro-report:to-bruto'&&e.data.module==='igen'){const p=e.data.record||{};if(!p.jugador)return;const apply=()=>{const jugador=DB.players.find(x=>nkey(x.n)===nkey(p.jugador));S.br=brBlank();S.br.jugador=jugador?jugador.n:p.jugador;S.br.generador={perfil:p.perfil||{},conclusion:p.conclusion||{}};S.brRef=brSnap(S.br);sendToExternalBruto(p,jugador);show('ibruto');toast(jugador?'Datos enviados al Informe Bruto externo y jugador identificado en Base Madre. Revisá ambos informes y guardá el externo.':'Informe transferido. El jugador no figura en Base Madre; verificá su identificación y completá foto/escudo antes de guardar.')};if(S.br&&brDirty())askConfirm('Tenés un Informe Bruto sin guardar. ¿Reemplazarlo?',apply);else apply()}
 });
 
 function openPlayer(n){S.cur=n;$('#selP').value=n;show('inicio')}
