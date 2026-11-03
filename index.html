@@ -308,8 +308,8 @@ function openSofaStats(player,base){
  const readFotMobUrl=()=>{
   const raw=$('#sfUrl').value.trim();
   let u;try{u=new URL(raw)}catch(e){throw new Error('Pegá una URL válida de FotMob.')};
-  if(!/(^|\\.)fotmob\\.com$/i.test(u.hostname))throw new Error('El enlace debe pertenecer a fotmob.com.');
-  const m=u.pathname.match(/\\/players\\/(\\d+)(?:\\/|$)/i);
+  if(!/(^|\.)fotmob\.com$/i.test(u.hostname))throw new Error('El enlace debe pertenecer a fotmob.com.');
+  const m=u.pathname.match(/\/players\/(\d+)(?:\/|$)/i);
   if(!m)throw new Error('No pude identificar el ID. Usá el enlace del perfil con formato fotmob.com/.../players/ID/nombre.');
   return m[1];
  };
