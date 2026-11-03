@@ -105,7 +105,7 @@ body.pb #bpr{display:block;font:12px/1.4 Arial,sans-serif;color:#000;background:
 <div class="card" style="grid-column:6/9"><h2>Radar técnico</h2><div style="height:210px"><canvas id="cRad"></canvas></div><div class="mu" style="font-size:11px">Percentil vs. jugadores de su mismo puesto en tu base</div></div>
 <div class="card" style="grid-column:9/11"><h2>Nota general</h2><div id="nota"></div></div>
 <div class="card" style="grid-column:11/13"><h2>Historial y consenso</h2><div id="hist"></div></div>
-<div class="card" style="grid-column:1/9"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">Estadísticas acumuladas</h2><div><button class="btn" id="stSofaUpdate">Actualizar desde SofaScore</button> <button class="btn" id="stSofaExcel">Exportar Excel</button></div></div><div class="mu" id="stSofaMeta" style="font-size:11px;margin:5px 0"></div><div style="overflow:auto" id="stats"></div></div>
+<div class="card" style="grid-column:1/9"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">Estadísticas acumuladas</h2><div><button class="btn" id="stSofaUpdate">Actualizar desde FotMob</button> <button class="btn" id="stSofaExcel">Exportar Excel</button></div></div><div class="mu" id="stSofaMeta" style="font-size:11px;margin:5px 0"></div><div style="overflow:auto" id="stats"></div></div>
 <div class="card" style="grid-column:9/11"><h2>Mapa de calor <span class="tag am">DEMO</span></h2><div class="heat" style="aspect-ratio:100/140"><canvas id="heat" width="200" height="280"></canvas><svg viewBox="0 0 100 140" id="heatL"></svg></div><div class="a" style="font-size:11px;margin-top:4px" id="heatT"></div></div>
 <div class="card" style="grid-column:11/13"><h2>Últimos informes / partidos</h2><div id="reps"></div></div>
 <div class="card" style="grid-column:1/13"><h2>Reportes del jugador</h2><div id="docs"></div></div>
@@ -291,70 +291,48 @@ function pTag(p){const m={'📈 PROGRESO':['','↗ PROGRESO'],'✅ RENDIDOR':[''
 const fdate=s=>s?s.split('-').reverse().join('/'):'—';
 function recOf(n){if(S.rec[n])return[S.rec[n],'definido por el scout'];const r=rstat(n);if(!r.n)return['OBSERVAR','sugerido: sin ratings'];
  if(r.avg>=7||(r.avg>=6.6&&r.tr==='PROGRESO'))return['RECOMENDADO','sugerido por rating'];if(r.avg<5.6)return['DESCARTAR','sugerido por rating'];return[r.avg>=6.3?'SEGUIR':'OBSERVAR','sugerido por rating']}
-async function sofaImportCall(payload){
- if(!cloudReady())throw new Error('Iniciá sesión en la Nube de SCOUTPRO para consultar SofaScore.');
- await clAuth();
- const r=await fetch(CL.cfg.url.replace(/\/+$/,'')+'/functions/v1/sofascore-import',{
-  method:'POST',headers:{'Content-Type':'application/json','apikey':CL.cfg.key,'Authorization':'Bearer '+CL.sess.access},
-  body:JSON.stringify(payload)
- });
- let j={};try{j=await r.json()}catch(e){}
- if(!r.ok)throw new Error(j.error||('Error '+r.status+' al consultar SofaScore'));
- return j;
-}
 function openSofaStats(player,base){
  const fields=[['PJ','pj'],['Minutos','min'],['Goles','g'],['Asistencias','a'],['Pases %','pp'],['Duelos %','du'],['Aéreos %','ae'],['Intercepciones','ic'],['Despejes','de'],['xG','xg'],['xA','xa'],['Amarillas','am']];
  const prev=U.sofastats[player]||{},vals={...(prev.metrics||{})};
  modal('<h2>Actualizar estadísticas · '+esc(player)+'</h2>'+
- '<p class="mu">Pegá el enlace del perfil de SofaScore y SCOUTPRO intentará recuperar las temporadas, competencias y estadísticas disponibles. Los valores se muestran para revisión antes de guardarlos; la Base Madre no se modifica.</p>'+
- '<div class="fm"><label class="w">Perfil SofaScore (URL)<input id="sfUrl" type="url" placeholder="https://www.sofascore.com/es/football/player/.../1018464#tab:season" value="'+esc(prev.profileUrl||'')+'"></label>'+
- '<label>Competencia<select id="sfTournament" disabled><option value="">Primero buscá el jugador</option></select></label>'+
- '<label>Temporada<select id="sfSeason" disabled><option value="">—</option></select></label></div>'+
- '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"><button class="btn on" id="sfSearch">Buscar jugador y temporadas</button><button class="btn" id="sfFetch" disabled>Consultar estadísticas</button><span class="mu" id="sfStatus" style="align-self:center"></span></div>'+
- '<p class="mu">Marcá únicamente las métricas que querés incorporar. Los valores manuales de la Base Madre se mantienen salvo que confirmes expresamente su reemplazo.</p>'+
+ '<p class="mu">Pegá el enlace del perfil de FotMob. SCOUTPRO reconocerá el jugador y su ID. Por ahora, cargá manualmente las métricas visibles en FotMob: no se consulta ni se extrae información automáticamente del sitio. La Base Madre y tus datos manuales no se modifican.</p>'+
+ '<div class="fm"><label class="w">Perfil FotMob (URL)<input id="sfUrl" type="url" placeholder="https://www.fotmob.com/es/players/1559675/nombre-del-jugador" value="'+esc((prev.profileUrl||'').includes('fotmob.com')?prev.profileUrl:'')+'"></label>'+
+ '<label>Competencia<input id="sfTournament" type="text" placeholder="Ej. Liga Profesional"></label>'+
+ '<label>Temporada<input id="sfSeason" type="text" placeholder="Ej. 2026"></label></div>'+
+ '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"><button class="btn on" id="sfSearch">Reconocer enlace FotMob</button><span class="mu" id="sfStatus" style="align-self:center"></span></div>'+
+ '<p class="mu">Ingresá los valores que consultaste en FotMob y marcá las métricas que querés guardar. Se conservarán los valores de la Base Madre; esta actualización queda identificada como dato complementario.</p>'+
  '<table class="num"><tr><th>Incluir</th><th>Métrica</th><th>Valor</th></tr>'+fields.map(([label,key])=>'<tr><td><input type="checkbox" id="sfOn_'+key+'" '+(Object.prototype.hasOwnProperty.call(vals,key)?'checked':'')+'></td><td>'+label+'</td><td><input id="sf_'+key+'" type="number" step="any" style="width:100px" value="'+(vals[key]??'')+'"></td></tr>').join('')+'</table>'+
  '<p><button class="btn" id="sfPreview">Vista previa</button> <button class="btn" onclick="closeM()">Cancelar</button></p><div id="sfPrev" class="mu"></div>');
- let tournaments=[],playerId='';
+ let playerId='';
  const status=m=>{const el=$('#sfStatus');if(el)el.textContent=m};
- const aliases={pj:['appearances','matches','played','games_played'],min:['minutes_played','minutesplayed','minutes'],g:['goals'],a:['assists'],pp:['accurate_passes_percentage','accuratepassespercentage','accurate_passes_pct','passing_accuracy'],du:['won_duels_percentage','won_duels_pct','duels_won_percentage'],ae:['won_aerial_duels_percentage','aerial_duels_won_percentage','aerials_won_percentage'],ic:['interceptions'],de:['total_clearances','clearances'],xg:['expected_goals','expectedgoals','xg'],xa:['expected_assists','expectedassists','xa'],am:['yellow_cards','yellowcards']};
- const findValue=(stats,key)=>{const n=Object.fromEntries(Object.entries(stats||{}).map(([k,v])=>[k.toLowerCase().replace(/[^a-z0-9]/g,''),v]));for(const a of aliases[key]||[]){const v=n[a.toLowerCase().replace(/[^a-z0-9]/g,'')];if(v!==undefined&&v!==null&&v!=='')return Number(v)}return null};
- const loadStats=async()=>{
-  const t=tournaments.find(x=>String(x.id)===$('#sfTournament').value),season=t?.seasons.find(x=>String(x.id)===$('#sfSeason').value);
-  if(!t||!season)throw new Error('Elegí una competencia y una temporada.');
-  status('Consultando estadísticas…');$('#sfFetch').disabled=true;
-  try{
-   const out=await sofaImportCall({action:'stats',playerId,tournamentId:String(t.id),seasonId:String(season.id),type:'overall'});
-   let count=0;fields.forEach(([label,key])=>{const v=findValue(out.statistics,key);if(v!==null&&Number.isFinite(v)){$('#sf_'+key).value=v;$('#sfOn_'+key).checked=true;count++}});
-   if(!count)throw new Error('SofaScore respondió, pero no se encontraron métricas compatibles con la tabla actual.');
-   status(count+' métricas recuperadas · '+t.name+' · '+(season.name||season.year));
-  }finally{$('#sfFetch').disabled=false}
+ const readFotMobUrl=()=>{
+  const raw=$('#sfUrl').value.trim();
+  let u;try{u=new URL(raw)}catch(e){throw new Error('Pegá una URL válida de FotMob.')};
+  if(!/(^|\\.)fotmob\\.com$/i.test(u.hostname))throw new Error('El enlace debe pertenecer a fotmob.com.');
+  const m=u.pathname.match(/\\/players\\/(\\d+)(?:\\/|$)/i);
+  if(!m)throw new Error('No pude identificar el ID. Usá el enlace del perfil con formato fotmob.com/.../players/ID/nombre.');
+  return m[1];
  };
- $('#sfSearch').onclick=async()=>{
-  try{
-   const url=$('#sfUrl').value.trim(),m=url.match(/(?:player|jugador)\/[^/?#]*\/(\d+)(?:[?#]|$)|\/(\d+)(?:[?#]|$)/i);
-   playerId=m&&(m[1]||m[2])||'';
-   if(!playerId)throw new Error('No pude identificar el ID del jugador en ese enlace. Pegá la URL completa del perfil de SofaScore.');
-   $('#sfSearch').disabled=true;status('Buscando jugador y temporadas…');
-   const out=await sofaImportCall({action:'seasons',playerId});tournaments=out.tournaments||[];
-   if(!tournaments.length)throw new Error('SofaScore no devolvió temporadas disponibles para este jugador.');
-   $('#sfTournament').innerHTML=tournaments.map(t=>'<option value="'+t.id+'">'+esc(t.name)+'</option>').join('');
-   const fillSeasons=()=>{const t=tournaments.find(x=>String(x.id)===$('#sfTournament').value);$('#sfSeason').innerHTML=(t?.seasons||[]).map(x=>'<option value="'+x.id+'">'+esc(x.name||x.year||x.id)+'</option>').join('');$('#sfSeason').disabled=!t?.seasons?.length;$('#sfFetch').disabled=!t?.seasons?.length};
-   $('#sfTournament').disabled=false;$('#sfTournament').onchange=fillSeasons;fillSeasons();
-   status((out.player?.name?out.player.name+' · ':'')+tournaments.length+' competencias encontradas');
-   await loadStats();
-  }catch(e){status('');toast(e.message||'No se pudo consultar SofaScore')}finally{$('#sfSearch').disabled=false}
+ $('#sfSearch').onclick=()=>{
+  try{playerId=readFotMobUrl();status('Enlace reconocido · ID de FotMob: '+playerId);toast('Perfil FotMob reconocido. Cargá las métricas para continuar.')}
+  catch(e){playerId='';status('');toast(e.message)}
  };
- $('#sfFetch').onclick=async()=>{try{await loadStats()}catch(e){status('');toast(e.message||'No se pudieron recuperar las estadísticas')}};
  $('#sfPreview').onclick=()=>{
+  try{playerId=readFotMobUrl()}catch(e){toast(e.message);return}
   const chosen={};fields.forEach(([label,key])=>{if($('#sfOn_'+key).checked){const v=$('#sf_'+key).value;if(v!==''){const x=Number(v);if(Number.isFinite(x))chosen[key]=x}}});
-  if(!Object.keys(chosen).length){toast('Primero consultá SofaScore o ingresá al menos una métrica válida');return}
-  const prevStats=U.sofastats[player]||{},manual=Object.keys(chosen).filter(k=>num(base[k])&&!Object.prototype.hasOwnProperty.call(prevStats.metrics||{},k));
-  $('#sfPrev').innerHTML='<b>Vista previa de actualización</b><p>'+fields.filter(x=>Object.prototype.hasOwnProperty.call(chosen,x[1])).map(([l,k])=>l+': <b>'+chosen[k]+'</b>'+(manual.includes(k)?' <span class="tag am">Reemplaza valor de Base Madre</span>':'')).join(' · ')+'</p><p class="mu">Se actualizarán '+Object.keys(chosen).length+' métricas. '+(manual.length?'Hay valores manuales seleccionados para reemplazo; revisalos antes de confirmar.':'No se reemplazan valores manuales existentes.')+'</p><button class="btn on" id="sfConfirm">Confirmar y guardar</button>';
-  $('#sfConfirm').onclick=async()=>{const record={...(U.sofastats[player]||{}),profileUrl:$('#sfUrl').value.trim(),sofaPlayerId:playerId,season:$('#sfSeason option:checked')?.textContent||'2026',competition:$('#sfTournament option:checked')?.textContent||'Todas',metrics:{...((U.sofastats[player]||{}).metrics||{}),...chosen},updatedAt:new Date().toISOString(),source:'SofaScore · importación automática asistida'};U.sofastats[player]=record;const ok=await saveU('sofastats');if(!ok){toast('No se pudo guardar la actualización');return}closeM();renderInicio();toast('Estadísticas actualizadas'+(cloudReady()?' · sincronización en curso':' · guardadas localmente'))};
+  if(!Object.keys(chosen).length){toast('Ingresá y seleccioná al menos una métrica válida.');return}
+  const manual=Object.keys(chosen).filter(k=>num(base[k]));
+  $('#sfPrev').innerHTML='<b>Vista previa · FotMob</b><p>'+fields.filter(x=>Object.prototype.hasOwnProperty.call(chosen,x[1])).map(([l,k])=>l+': <b>'+chosen[k]+'</b>'+(manual.includes(k)?' <span class="tag am">La Base Madre conserva su valor</span>':'')).join(' · ')+'</p><p class="mu">Jugador: '+esc(player)+' · ID FotMob: '+esc(playerId)+' · '+esc($('#sfTournament').value.trim()||'Competencia no indicada')+' · '+esc($('#sfSeason').value.trim()||'Temporada no indicada')+'. Se guardarán '+Object.keys(chosen).length+' métricas complementarias sin sobrescribir la Base Madre.</p><button class="btn on" id="sfConfirm">Confirmar y guardar</button>';
+  $('#sfConfirm').onclick=async()=>{
+   const record={...(U.sofastats[player]||{}),profileUrl:$('#sfUrl').value.trim(),fotmobPlayerId:playerId,season:$('#sfSeason').value.trim()||'No indicada',competition:$('#sfTournament').value.trim()||'No indicada',metrics:{...((U.sofastats[player]||{}).metrics||{}),...chosen},updatedAt:new Date().toISOString(),source:'FotMob · carga manual verificada'};
+   U.sofastats[player]=record;const ok=await saveU('sofastats');
+   if(!ok){toast('No se pudo guardar la actualización');return}
+   closeM();renderInicio();toast('Datos FotMob guardados'+(cloudReady()?' · sincronización en curso':' · guardados localmente'));
+  };
  };
 }
 function exportSofaStats(player,stats,meta,rows){
- const data=[['Jugador','Temporada','Competencia','Perfil SofaScore','Fuente','Actualizado',...rows.map(x=>x[0])],[player,meta.season||'2026',meta.competition||'Todas',meta.profileUrl||'',meta.source||'Base Madre',meta.updatedAt||'',...rows.map(x=>stats[x[1]]??'')]];
+ const data=[['Jugador','Temporada','Competencia','Perfil FotMob','Fuente','Actualizado',...rows.map(x=>x[0])],[player,meta.season||'No indicada',meta.competition||'No indicada',meta.profileUrl||'',meta.source||'Base Madre',meta.updatedAt||'',...rows.map(x=>stats[x[1]]??'')]];
  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(data),'Estadisticas');XLSX.writeFile(wb,'SCOUTPRO_estadisticas_'+player.replace(/[^a-z0-9]+/gi,'_')+'.xlsx');
 }
 function renderInicio(){const n=S.cur,p=getPlayerByName(n),r=rstat(n),st=DB.st[n],mk_=getPlayerMarketData(n),stars=r.avg?Math.round(r.avg/2):0;
@@ -376,7 +354,7 @@ function renderInicio(){const n=S.cur,p=getPlayerByName(n),r=rstat(n),st=DB.st[n
  const sofa=U.sofastats[n]||{},merged={...(st||{}),...(sofa.metrics||{})};
  const fv=(v,t)=>t==='p'?pc(v):num(v)?(Number.isInteger(v)?v:v.toFixed(2)):(v??'—');
  $('#stats').innerHTML=(st||Object.keys(sofa.metrics||{}).length)?`<table class="num"><tr><th>Métrica</th>${rows.map(x=>`<th>${x[0]}</th>`).join('')}</tr><tr><td>${p.n}</td>${rows.map(x=>`<td><b>${fv(merged[x[1]],x[2])}</b>${sofa.metrics&&Object.prototype.hasOwnProperty.call(sofa.metrics,x[1])?'<small class="a"> · S</small>':''}</td>`).join('')}</tr><tr class="mu"><td>Prom. del puesto (${g})</td>${rows.map(x=>`<td>${['pj','min','g','a','am'].includes(x[1])?'':fv(posAvg(n,x[1]),x[2])}</td>`).join('')}</tr></table>`:'<div class="mu">Sin datos: este jugador no figura en la hoja Estadisticas.</div>';
- const sm=$('#stSofaMeta');if(sm)sm.textContent=sofa.updatedAt?'Última actualización: '+new Date(sofa.updatedAt).toLocaleString('es-AR')+' · Temporada '+(sofa.season||'—')+' · '+(sofa.competition||'Todas')+' · Fuente: SofaScore (importación asistida)':'Los valores marcados con S provienen de la actualización asistida de SofaScore.';
+ const sm=$('#stSofaMeta');if(sm)sm.textContent=sofa.updatedAt?'Última actualización: '+new Date(sofa.updatedAt).toLocaleString('es-AR')+' · Temporada '+(sofa.season||'—')+' · '+(sofa.competition||'Todas')+' · Fuente: FotMob (carga manual verificada)':'Los valores marcados con S provienen de la actualización de FotMob.';
  const su=$('#stSofaUpdate');if(su)su.onclick=()=>openSofaStats(n,st||{});
  const se=$('#stSofaExcel');if(se)se.onclick=()=>exportSofaStats(n,merged,sofa,rows);
  drawHeat(n);renderDocs(n);
