@@ -291,19 +291,66 @@ function pTag(p){const m={'📈 PROGRESO':['','↗ PROGRESO'],'✅ RENDIDOR':[''
 const fdate=s=>s?s.split('-').reverse().join('/'):'—';
 function recOf(n){if(S.rec[n])return[S.rec[n],'definido por el scout'];const r=rstat(n);if(!r.n)return['OBSERVAR','sugerido: sin ratings'];
  if(r.avg>=7||(r.avg>=6.6&&r.tr==='PROGRESO'))return['RECOMENDADO','sugerido por rating'];if(r.avg<5.6)return['DESCARTAR','sugerido por rating'];return[r.avg>=6.3?'SEGUIR':'OBSERVAR','sugerido por rating']}
+async function sofaImportCall(payload){
+ if(!cloudReady())throw new Error('Iniciá sesión en la Nube de SCOUTPRO para consultar SofaScore.');
+ await clAuth();
+ const r=await fetch(CL.cfg.url.replace(/\/+$/,'')+'/functions/v1/sofascore-import',{
+  method:'POST',headers:{'Content-Type':'application/json','apikey':CL.cfg.key,'Authorization':'Bearer '+CL.sess.access},
+  body:JSON.stringify(payload)
+ });
+ let j={};try{j=await r.json()}catch(e){}
+ if(!r.ok)throw new Error(j.error||('Error '+r.status+' al consultar SofaScore'));
+ return j;
+}
 function openSofaStats(player,base){
  const fields=[['PJ','pj'],['Minutos','min'],['Goles','g'],['Asistencias','a'],['Pases %','pp'],['Duelos %','du'],['Aéreos %','ae'],['Intercepciones','ic'],['Despejes','de'],['xG','xg'],['xA','xa'],['Amarillas','am']];
  const prev=U.sofastats[player]||{},vals={...(prev.metrics||{})};
- modal(`<h2>Actualizar estadísticas · ${esc(player)}</h2><p class="mu">Importación asistida: abrí el perfil del jugador en SofaScore, consultá la temporada y completá los valores. SCOUTPRO no consulta una API pública de SofaScore. Los datos de la Base Madre se mantienen; seleccioná expresamente qué métricas querés actualizar.</p>
- <div class="fm"><label class="w">Perfil SofaScore (URL)<input id="sfUrl" type="url" placeholder="https://www.sofascore.com/player/..." value="${esc(prev.profileUrl||'')}"></label><label>Temporada<input id="sfSeason" value="${esc(prev.season||'2026')}"></label><label>Competencia<input id="sfComp" value="${esc(prev.competition||'Todas')}"></label></div>
- <p class="mu">Marcá únicamente las métricas que querés incorporar. Si una métrica ya tiene un dato manual, quedará intacta salvo que la marques para reemplazo.</p>
- <table class="num"><tr><th>Incluir</th><th>Métrica</th><th>Valor</th></tr>${fields.map(([label,key])=>`<tr><td><input type="checkbox" id="sfOn_${key}" ${Object.prototype.hasOwnProperty.call(vals,key)?'checked':''}></td><td>${label}</td><td><input id="sf_${key}" type="number" step="any" style="width:100px" value="${vals[key]??''}"></td></tr>`).join('')}</table>
- <p><button class="btn on" id="sfPreview">Vista previa</button> <button class="btn" onclick="closeM()">Cancelar</button></p><div id="sfPrev" class="mu"></div>`);
- $('#sfPreview').onclick=()=>{const chosen={};fields.forEach(([label,key])=>{if($('#sfOn_'+key).checked){const v=$('#sf_'+key).value;if(v!==''){const x=Number(v);if(Number.isFinite(x))chosen[key]=x}}});
- if(!Object.keys(chosen).length){toast('Seleccioná al menos una métrica con valor válido');return}
- const prevStats=U.sofastats[player]||{},manual=Object.keys(chosen).filter(k=>num(base[k])&&!Object.prototype.hasOwnProperty.call(prevStats.metrics||{},k));
- $('#sfPrev').innerHTML='<b>Vista previa de actualización</b><p>'+fields.filter(x=>Object.prototype.hasOwnProperty.call(chosen,x[1])).map(([l,k])=>l+': <b>'+chosen[k]+'</b>'+(manual.includes(k)?' <span class="tag am">Reemplaza valor de Base Madre</span>':'')).join(' · ')+'</p><p class="mu">Se actualizarán '+Object.keys(chosen).length+' métricas. '+(manual.length?'Hay valores manuales seleccionados para reemplazo; revisalos antes de confirmar.':'No se reemplazan valores manuales existentes.')+'</p><button class="btn on" id="sfConfirm">Confirmar y guardar</button>';
- $('#sfConfirm').onclick=async()=>{const record={...(U.sofastats[player]||{}),profileUrl:$('#sfUrl').value.trim(),season:$('#sfSeason').value.trim()||'2026',competition:$('#sfComp').value.trim()||'Todas',metrics:{...((U.sofastats[player]||{}).metrics||{}),...chosen},updatedAt:new Date().toISOString(),source:'SofaScore · importación asistida'};U.sofastats[player]=record;const ok=await saveU('sofastats');if(!ok){toast('No se pudo guardar la actualización');return}closeM();renderInicio();toast('Estadísticas actualizadas'+(cloudReady()?' · sincronización en curso':' · guardadas localmente'))};
+ modal('<h2>Actualizar estadísticas · '+esc(player)+'</h2>'+
+ '<p class="mu">Pegá el enlace del perfil de SofaScore y SCOUTPRO intentará recuperar las temporadas, competencias y estadísticas disponibles. Los valores se muestran para revisión antes de guardarlos; la Base Madre no se modifica.</p>'+
+ '<div class="fm"><label class="w">Perfil SofaScore (URL)<input id="sfUrl" type="url" placeholder="https://www.sofascore.com/es/football/player/.../1018464#tab:season" value="'+esc(prev.profileUrl||'')+'"></label>'+
+ '<label>Competencia<select id="sfTournament" disabled><option value="">Primero buscá el jugador</option></select></label>'+
+ '<label>Temporada<select id="sfSeason" disabled><option value="">—</option></select></label></div>'+
+ '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"><button class="btn on" id="sfSearch">Buscar jugador y temporadas</button><button class="btn" id="sfFetch" disabled>Consultar estadísticas</button><span class="mu" id="sfStatus" style="align-self:center"></span></div>'+
+ '<p class="mu">Marcá únicamente las métricas que querés incorporar. Los valores manuales de la Base Madre se mantienen salvo que confirmes expresamente su reemplazo.</p>'+
+ '<table class="num"><tr><th>Incluir</th><th>Métrica</th><th>Valor</th></tr>'+fields.map(([label,key])=>'<tr><td><input type="checkbox" id="sfOn_'+key+'" '+(Object.prototype.hasOwnProperty.call(vals,key)?'checked':'')+'></td><td>'+label+'</td><td><input id="sf_'+key+'" type="number" step="any" style="width:100px" value="'+(vals[key]??'')+'"></td></tr>').join('')+'</table>'+
+ '<p><button class="btn" id="sfPreview">Vista previa</button> <button class="btn" onclick="closeM()">Cancelar</button></p><div id="sfPrev" class="mu"></div>');
+ let tournaments=[],playerId='';
+ const status=m=>{const el=$('#sfStatus');if(el)el.textContent=m};
+ const aliases={pj:['appearances','matches','played','games_played'],min:['minutes_played','minutesplayed','minutes'],g:['goals'],a:['assists'],pp:['accurate_passes_percentage','accuratepassespercentage','accurate_passes_pct','passing_accuracy'],du:['won_duels_percentage','won_duels_pct','duels_won_percentage'],ae:['won_aerial_duels_percentage','aerial_duels_won_percentage','aerials_won_percentage'],ic:['interceptions'],de:['total_clearances','clearances'],xg:['expected_goals','expectedgoals','xg'],xa:['expected_assists','expectedassists','xa'],am:['yellow_cards','yellowcards']};
+ const findValue=(stats,key)=>{const n=Object.fromEntries(Object.entries(stats||{}).map(([k,v])=>[k.toLowerCase().replace(/[^a-z0-9]/g,''),v]));for(const a of aliases[key]||[]){const v=n[a.toLowerCase().replace(/[^a-z0-9]/g,'')];if(v!==undefined&&v!==null&&v!=='')return Number(v)}return null};
+ const loadStats=async()=>{
+  const t=tournaments.find(x=>String(x.id)===$('#sfTournament').value),season=t?.seasons.find(x=>String(x.id)===$('#sfSeason').value);
+  if(!t||!season)throw new Error('Elegí una competencia y una temporada.');
+  status('Consultando estadísticas…');$('#sfFetch').disabled=true;
+  try{
+   const out=await sofaImportCall({action:'stats',playerId,tournamentId:String(t.id),seasonId:String(season.id),type:'overall'});
+   let count=0;fields.forEach(([label,key])=>{const v=findValue(out.statistics,key);if(v!==null&&Number.isFinite(v)){$('#sf_'+key).value=v;$('#sfOn_'+key).checked=true;count++}});
+   if(!count)throw new Error('SofaScore respondió, pero no se encontraron métricas compatibles con la tabla actual.');
+   status(count+' métricas recuperadas · '+t.name+' · '+(season.name||season.year));
+  }finally{$('#sfFetch').disabled=false}
+ };
+ $('#sfSearch').onclick=async()=>{
+  try{
+   const url=$('#sfUrl').value.trim(),m=url.match(/(?:player|jugador)\/[^/?#]*\/(\d+)(?:[?#]|$)|\/(\d+)(?:[?#]|$)/i);
+   playerId=m&&(m[1]||m[2])||'';
+   if(!playerId)throw new Error('No pude identificar el ID del jugador en ese enlace. Pegá la URL completa del perfil de SofaScore.');
+   $('#sfSearch').disabled=true;status('Buscando jugador y temporadas…');
+   const out=await sofaImportCall({action:'seasons',playerId});tournaments=out.tournaments||[];
+   if(!tournaments.length)throw new Error('SofaScore no devolvió temporadas disponibles para este jugador.');
+   $('#sfTournament').innerHTML=tournaments.map(t=>'<option value="'+t.id+'">'+esc(t.name)+'</option>').join('');
+   const fillSeasons=()=>{const t=tournaments.find(x=>String(x.id)===$('#sfTournament').value);$('#sfSeason').innerHTML=(t?.seasons||[]).map(x=>'<option value="'+x.id+'">'+esc(x.name||x.year||x.id)+'</option>').join('');$('#sfSeason').disabled=!t?.seasons?.length;$('#sfFetch').disabled=!t?.seasons?.length};
+   $('#sfTournament').disabled=false;$('#sfTournament').onchange=fillSeasons;fillSeasons();
+   status((out.player?.name?out.player.name+' · ':'')+tournaments.length+' competencias encontradas');
+   await loadStats();
+  }catch(e){status('');toast(e.message||'No se pudo consultar SofaScore')}finally{$('#sfSearch').disabled=false}
+ };
+ $('#sfFetch').onclick=async()=>{try{await loadStats()}catch(e){status('');toast(e.message||'No se pudieron recuperar las estadísticas')}};
+ $('#sfPreview').onclick=()=>{
+  const chosen={};fields.forEach(([label,key])=>{if($('#sfOn_'+key).checked){const v=$('#sf_'+key).value;if(v!==''){const x=Number(v);if(Number.isFinite(x))chosen[key]=x}}});
+  if(!Object.keys(chosen).length){toast('Primero consultá SofaScore o ingresá al menos una métrica válida');return}
+  const prevStats=U.sofastats[player]||{},manual=Object.keys(chosen).filter(k=>num(base[k])&&!Object.prototype.hasOwnProperty.call(prevStats.metrics||{},k));
+  $('#sfPrev').innerHTML='<b>Vista previa de actualización</b><p>'+fields.filter(x=>Object.prototype.hasOwnProperty.call(chosen,x[1])).map(([l,k])=>l+': <b>'+chosen[k]+'</b>'+(manual.includes(k)?' <span class="tag am">Reemplaza valor de Base Madre</span>':'')).join(' · ')+'</p><p class="mu">Se actualizarán '+Object.keys(chosen).length+' métricas. '+(manual.length?'Hay valores manuales seleccionados para reemplazo; revisalos antes de confirmar.':'No se reemplazan valores manuales existentes.')+'</p><button class="btn on" id="sfConfirm">Confirmar y guardar</button>';
+  $('#sfConfirm').onclick=async()=>{const record={...(U.sofastats[player]||{}),profileUrl:$('#sfUrl').value.trim(),sofaPlayerId:playerId,season:$('#sfSeason option:checked')?.textContent||'2026',competition:$('#sfTournament option:checked')?.textContent||'Todas',metrics:{...((U.sofastats[player]||{}).metrics||{}),...chosen},updatedAt:new Date().toISOString(),source:'SofaScore · importación automática asistida'};U.sofastats[player]=record;const ok=await saveU('sofastats');if(!ok){toast('No se pudo guardar la actualización');return}closeM();renderInicio();toast('Estadísticas actualizadas'+(cloudReady()?' · sincronización en curso':' · guardadas localmente'))};
  };
 }
 function exportSofaStats(player,stats,meta,rows){
