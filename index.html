@@ -105,7 +105,7 @@ body.pb #bpr{display:block;font:12px/1.4 Arial,sans-serif;color:#000;background:
 <div class="card" style="grid-column:6/9"><h2>Radar técnico</h2><div style="height:210px"><canvas id="cRad"></canvas></div><div class="mu" style="font-size:11px">Percentil vs. jugadores de su mismo puesto en tu base</div></div>
 <div class="card" style="grid-column:9/11"><h2>Nota general</h2><div id="nota"></div></div>
 <div class="card" style="grid-column:11/13"><h2>Historial y consenso</h2><div id="hist"></div></div>
-<div class="card" style="grid-column:1/9"><h2>Estadísticas acumuladas</h2><div style="overflow:auto" id="stats"></div></div>
+<div class="card" style="grid-column:1/9"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">Estadísticas acumuladas</h2><div><button class="btn" id="stSofaUpdate">Actualizar desde SofaScore</button> <button class="btn" id="stSofaExcel">Exportar Excel</button></div></div><div class="mu" id="stSofaMeta" style="font-size:11px;margin:5px 0"></div><div style="overflow:auto" id="stats"></div></div>
 <div class="card" style="grid-column:9/11"><h2>Mapa de calor <span class="tag am">DEMO</span></h2><div class="heat" style="aspect-ratio:100/140"><canvas id="heat" width="200" height="280"></canvas><svg viewBox="0 0 100 140" id="heatL"></svg></div><div class="a" style="font-size:11px;margin-top:4px" id="heatT"></div></div>
 <div class="card" style="grid-column:11/13"><h2>Últimos informes / partidos</h2><div id="reps"></div></div>
 <div class="card" style="grid-column:1/13"><h2>Reportes del jugador</h2><div id="docs"></div></div>
@@ -133,7 +133,7 @@ body.pb #bpr{display:block;font:12px/1.4 Arial,sans-serif;color:#000;background:
 <script>
 /* ================= DATOS: fuente única (reemplazable por Excel/Sheets/API) ================= */
 let DB=null,META=null;
-const U={matches:[],informes:[],files:[],photos:{},branding:{},rec:{},market:{},searches:[],mkrev:{},brutos:[],agenda:[],ineto:[],igen:[]};
+const U={matches:[],informes:[],files:[],photos:{},branding:{},rec:{},market:{},searches:[],mkrev:{},brutos:[],agenda:[],ineto:[],igen:[],sofastats:{}};
 /* ================= STORAGE: IndexedDB local (solo este navegador). Futuro: reemplazar Store por API / base online ================= */
 const Store={db:null,open(){return new Promise((res,rej)=>{const r=indexedDB.open('scoutpro',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>{this.db=r.result;res()};r.onerror=()=>rej(r.error)})},
  get(k){return new Promise(res=>{try{const q=this.db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(undefined)}catch(e){res(undefined)}})},
@@ -291,6 +291,25 @@ function pTag(p){const m={'📈 PROGRESO':['','↗ PROGRESO'],'✅ RENDIDOR':[''
 const fdate=s=>s?s.split('-').reverse().join('/'):'—';
 function recOf(n){if(S.rec[n])return[S.rec[n],'definido por el scout'];const r=rstat(n);if(!r.n)return['OBSERVAR','sugerido: sin ratings'];
  if(r.avg>=7||(r.avg>=6.6&&r.tr==='PROGRESO'))return['RECOMENDADO','sugerido por rating'];if(r.avg<5.6)return['DESCARTAR','sugerido por rating'];return[r.avg>=6.3?'SEGUIR':'OBSERVAR','sugerido por rating']}
+function openSofaStats(player,base){
+ const fields=[['PJ','pj'],['Minutos','min'],['Goles','g'],['Asistencias','a'],['Pases %','pp'],['Duelos %','du'],['Aéreos %','ae'],['Intercepciones','ic'],['Despejes','de'],['xG','xg'],['xA','xa'],['Amarillas','am']];
+ const prev=U.sofastats[player]||{},vals={...(prev.metrics||{})};
+ modal(`<h2>Actualizar estadísticas · ${esc(player)}</h2><p class="mu">Importación asistida: abrí el perfil del jugador en SofaScore, consultá la temporada y completá los valores. SCOUTPRO no consulta una API pública de SofaScore. Los datos de la Base Madre se mantienen; seleccioná expresamente qué métricas querés actualizar.</p>
+ <div class="fm"><label class="w">Perfil SofaScore (URL)<input id="sfUrl" type="url" placeholder="https://www.sofascore.com/player/..." value="${esc(prev.profileUrl||'')}"></label><label>Temporada<input id="sfSeason" value="${esc(prev.season||'2026')}"></label><label>Competencia<input id="sfComp" value="${esc(prev.competition||'Todas')}"></label></div>
+ <p class="mu">Marcá únicamente las métricas que querés incorporar. Si una métrica ya tiene un dato manual, quedará intacta salvo que la marques para reemplazo.</p>
+ <table class="num"><tr><th>Incluir</th><th>Métrica</th><th>Valor</th></tr>${fields.map(([label,key])=>`<tr><td><input type="checkbox" id="sfOn_${key}" ${Object.prototype.hasOwnProperty.call(vals,key)?'checked':''}></td><td>${label}</td><td><input id="sf_${key}" type="number" step="any" style="width:100px" value="${vals[key]??''}"></td></tr>`).join('')}</table>
+ <p><button class="btn on" id="sfPreview">Vista previa</button> <button class="btn" onclick="closeM()">Cancelar</button></p><div id="sfPrev" class="mu"></div>`);
+ $('#sfPreview').onclick=()=>{const chosen={};fields.forEach(([label,key])=>{if($('#sfOn_'+key).checked){const v=$('#sf_'+key).value;if(v!==''){const x=Number(v);if(Number.isFinite(x))chosen[key]=x}}});
+ if(!Object.keys(chosen).length){toast('Seleccioná al menos una métrica con valor válido');return}
+ const prevStats=U.sofastats[player]||{},manual=Object.keys(chosen).filter(k=>num(base[k])&&!Object.prototype.hasOwnProperty.call(prevStats.metrics||{},k));
+ $('#sfPrev').innerHTML='<b>Vista previa de actualización</b><p>'+fields.filter(x=>Object.prototype.hasOwnProperty.call(chosen,x[1])).map(([l,k])=>l+': <b>'+chosen[k]+'</b>'+(manual.includes(k)?' <span class="tag am">Reemplaza valor de Base Madre</span>':'')).join(' · ')+'</p><p class="mu">Se actualizarán '+Object.keys(chosen).length+' métricas. '+(manual.length?'Hay valores manuales seleccionados para reemplazo; revisalos antes de confirmar.':'No se reemplazan valores manuales existentes.')+'</p><button class="btn on" id="sfConfirm">Confirmar y guardar</button>';
+ $('#sfConfirm').onclick=async()=>{const record={...(U.sofastats[player]||{}),profileUrl:$('#sfUrl').value.trim(),season:$('#sfSeason').value.trim()||'2026',competition:$('#sfComp').value.trim()||'Todas',metrics:{...((U.sofastats[player]||{}).metrics||{}),...chosen},updatedAt:new Date().toISOString(),source:'SofaScore · importación asistida'};U.sofastats[player]=record;const ok=await saveU('sofastats');if(!ok){toast('No se pudo guardar la actualización');return}closeM();renderInicio();toast('Estadísticas actualizadas'+(cloudReady()?' · sincronización en curso':' · guardadas localmente'))};
+ };
+}
+function exportSofaStats(player,stats,meta,rows){
+ const data=[['Jugador','Temporada','Competencia','Perfil SofaScore','Fuente','Actualizado',...rows.map(x=>x[0])],[player,meta.season||'2026',meta.competition||'Todas',meta.profileUrl||'',meta.source||'Base Madre',meta.updatedAt||'',...rows.map(x=>stats[x[1]]??'')]];
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(data),'Estadisticas');XLSX.writeFile(wb,'SCOUTPRO_estadisticas_'+player.replace(/[^a-z0-9]+/gi,'_')+'.xlsx');
+}
 function renderInicio(){const n=S.cur,p=getPlayerByName(n),r=rstat(n),st=DB.st[n],mk_=getPlayerMarketData(n),stars=r.avg?Math.round(r.avg/2):0;
  $('#ficha').innerHTML=`<div><h2>Ficha del jugador</h2><div style="display:flex;gap:12px"><div class="ph">${photoHTML(n)}</div><div><div style="font:700 24px 'Barlow Condensed',sans-serif">${p.n}</div><div class="mu">${crestImg(p.club)}${esc(p.club||'—')} · ${p.pos||'—'}</div>
  <div>Rating general: <span class="a">${'★'.repeat(stars)}${'☆'.repeat(5-stars)}</span> ${r.avg?f1(r.avg/2)+'/5':'sin datos'}</div><div style="margin-top:4px">${pTag(prog(n))}</div><div style="margin-top:4px">${mkTag(n)} <button class="btn" id="bmk" style="padding:2px 8px;font-size:12px">Mercado</button></div><div style="margin-top:6px"><button class="btn" id="bph">📷 ${hasManual(n)?'Cambiar foto manual':autoFace(n)?'Subir foto manual':'Agregar foto'}</button>${hasManual(n)?' <button class="btn" id="bphx">Quitar manual</button>':''}</div></div></div></div>
@@ -307,8 +326,12 @@ function renderInicio(){const n=S.cur,p=getPlayerByName(n),r=rstat(n),st=DB.st[n
  const [rc,rsrc]=recOf(n),ok=['LISTA CORTA','RECOMENDADO'].includes(rc);
  $('#hist').innerHTML=`<div class="mu" style="font-size:12px">Consenso en lista corta</div><div class="big ${ok?'g':'mu'}">${ok?'Sí':'No'}</div><div style="font-size:12px" class="mu">Evaluados ${r.n} · NJ ${r.nj} · SUP ${r.sup}</div>`;
  const g=grp(n),rows=[['PJ','pj'],['Min','min'],['Goles','g'],['Asist.','a'],['Pases %','pp','p'],['Duelos %','du','p'],['Aéreos %','ae','p'],['Intercep.','ic'],['Despejes','de'],['xG','xg'],['xA','xa'],['Amar.','am']];
+ const sofa=U.sofastats[n]||{},merged={...(st||{}),...(sofa.metrics||{})};
  const fv=(v,t)=>t==='p'?pc(v):num(v)?(Number.isInteger(v)?v:v.toFixed(2)):(v??'—');
- $('#stats').innerHTML=st?`<table class="num"><tr><th>Métrica</th>${rows.map(x=>`<th>${x[0]}</th>`).join('')}</tr><tr><td>${p.n}</td>${rows.map(x=>`<td><b>${fv(st[x[1]],x[2])}</b></td>`).join('')}</tr><tr class="mu"><td>Prom. del puesto (${g})</td>${rows.map(x=>`<td>${['pj','min','g','a','am'].includes(x[1])?'':fv(posAvg(n,x[1]),x[2])}</td>`).join('')}</tr></table>`:'<div class="mu">Sin datos: este jugador no figura en la hoja Estadisticas.</div>';
+ $('#stats').innerHTML=(st||Object.keys(sofa.metrics||{}).length)?`<table class="num"><tr><th>Métrica</th>${rows.map(x=>`<th>${x[0]}</th>`).join('')}</tr><tr><td>${p.n}</td>${rows.map(x=>`<td><b>${fv(merged[x[1]],x[2])}</b>${sofa.metrics&&Object.prototype.hasOwnProperty.call(sofa.metrics,x[1])?'<small class="a"> · S</small>':''}</td>`).join('')}</tr><tr class="mu"><td>Prom. del puesto (${g})</td>${rows.map(x=>`<td>${['pj','min','g','a','am'].includes(x[1])?'':fv(posAvg(n,x[1]),x[2])}</td>`).join('')}</tr></table>`:'<div class="mu">Sin datos: este jugador no figura en la hoja Estadisticas.</div>';
+ const sm=$('#stSofaMeta');if(sm)sm.textContent=sofa.updatedAt?'Última actualización: '+new Date(sofa.updatedAt).toLocaleString('es-AR')+' · Temporada '+(sofa.season||'—')+' · '+(sofa.competition||'Todas')+' · Fuente: SofaScore (importación asistida)':'Los valores marcados con S provienen de la actualización asistida de SofaScore.';
+ const su=$('#stSofaUpdate');if(su)su.onclick=()=>openSofaStats(n,st||{});
+ const se=$('#stSofaExcel');if(se)se.onclick=()=>exportSofaStats(n,merged,sofa,rows);
  drawHeat(n);renderDocs(n);
  const feed=getFeed(n);$('#reps').innerHTML='<div style="max-height:190px;overflow:auto">'+(feed.length?feedHTML(feed.slice(0,5)):'<div class="mu">Sin informes ni partidos observados.</div>')+'</div>'+(feed.length>5?`<button class="btn" id="vt">VER TODOS (${feed.length})</button> `:'')+'<button class="btn" id="ni">+ Informe</button>';bindFeed($('#reps'),feed);
  const vt=$('#vt');if(vt)vt.onclick=()=>{modal(`<h2>Informes / partidos · ${esc(n)}</h2><div style="max-height:60vh;overflow:auto" id="allf">${feedHTML(feed)}</div><p><button class="btn" onclick="closeM()">Cerrar</button></p>`);bindFeed($('#allf'),feed)};$('#ni').onclick=()=>formInforme({jugador:n});
@@ -703,7 +726,7 @@ const CLOUD={
   url:'https://iuufnafevroywwbcafgp.supabase.co',
   key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dWZuYWZldnJveXd3YmNhZmdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNTU0NDUsImV4cCI6MjEwNzYzMTQ0NX0.mO6lMo3YLQfCZrPMMntXjGvbLTtGh2GSdMDZH2T8eMA'
 };
-const CL_ARR=['matches','informes','brutos','agenda','searches','files','ineto','igen'],CL_MAP=['rec','market','mkrev','photos','branding'],CL_ALL=CL_ARR.concat(CL_MAP);
+const CL_ARR=['matches','informes','brutos','agenda','searches','files','ineto','igen'],CL_MAP=['rec','market','mkrev','photos','branding','sofastats'],CL_ALL=CL_ARR.concat(CL_MAP);
 const CL={cfg:null,sess:null,st:'none',last:null,err:'',conf:[],busy:false,again:false,base:{},timer:null,motherNew:false};
 const canon=o=>o===null||typeof o!=='object'?JSON.stringify(o):Array.isArray(o)?'['+o.map(canon).join(',')+']':'{'+Object.keys(o).filter(k=>o[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+canon(o[k])).join(',')+'}';
 const hsh=s=>{let a=5381,b=2166136261;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);a=((a<<5)+a+c)|0;b=Math.imul(b^c,16777619)}return(a>>>0).toString(36)+(b>>>0).toString(36)+s.length};
@@ -845,7 +868,7 @@ document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>{if(a.dataset.v==='i
 $('#sync').onclick=()=>toast('Conexión con Google Sheets pendiente de configuración');
 $('#xl').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)loadExcelMotherBase(f)};
 $('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')};
-(async()=>{try{await Store.open();for(const k of ['matches','informes','files','ineto','igen'])U[k]=(await Store.get(k))||[];U.photos=(await Store.get('photos'))||{};U.branding=(await Store.get('branding'))||{};applyBranding();U.market=(await Store.get('market'))||{};U.searches=(await Store.get('searches'))||[];U.mkrev=(await Store.get('mkrev'))||{};U.brutos=(await Store.get('brutos'))||[];U.agenda=(await Store.get('agenda'))||[];U.rec=(await Store.get('rec'))||{};S.rec=U.rec;
+(async()=>{try{await Store.open();for(const k of ['matches','informes','files','ineto','igen'])U[k]=(await Store.get(k))||[];U.photos=(await Store.get('photos'))||{};U.branding=(await Store.get('branding'))||{};applyBranding();U.market=(await Store.get('market'))||{};U.searches=(await Store.get('searches'))||[];U.mkrev=(await Store.get('mkrev'))||{};U.brutos=(await Store.get('brutos'))||[];U.agenda=(await Store.get('agenda'))||[];U.rec=(await Store.get('rec'))||{};U.sofastats=(await Store.get('sofastats'))||{};S.rec=U.rec;
  const m=await Store.get('mother');if(m&&m.db){applyMother(m.db,m.meta);clInit();return}}catch(e){toast('Almacenamiento local no disponible: los datos no se conservarán')}
  chip();show('home');clInit()})();
 
