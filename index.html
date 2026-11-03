@@ -105,7 +105,7 @@ body.pb #bpr{display:block;font:12px/1.4 Arial,sans-serif;color:#000;background:
 <div class="card" style="grid-column:6/9"><h2>Radar técnico</h2><div style="height:210px"><canvas id="cRad"></canvas></div><div class="mu" style="font-size:11px">Percentil vs. jugadores de su mismo puesto en tu base</div></div>
 <div class="card" style="grid-column:9/11"><h2>Nota general</h2><div id="nota"></div></div>
 <div class="card" style="grid-column:11/13"><h2>Historial y consenso</h2><div id="hist"></div></div>
-undefined
+<div class="card" style="grid-column:1/9"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">Estadísticas acumuladas</h2><div><button class="btn" id="stSofaUpdate">Actualizar desde SofaScore</button> <button class="btn" id="stSofaExcel">Exportar Excel</button></div></div><div class="mu" id="stSofaMeta" style="font-size:11px;margin:5px 0"></div><div style="overflow:auto" id="stats"></div></div>
 <div class="card" style="grid-column:9/11"><h2>Mapa de calor <span class="tag am">DEMO</span></h2><div class="heat" style="aspect-ratio:100/140"><canvas id="heat" width="200" height="280"></canvas><svg viewBox="0 0 100 140" id="heatL"></svg></div><div class="a" style="font-size:11px;margin-top:4px" id="heatT"></div></div>
 <div class="card" style="grid-column:11/13"><h2>Últimos informes / partidos</h2><div id="reps"></div></div>
 <div class="card" style="grid-column:1/13"><h2>Reportes del jugador</h2><div id="docs"></div></div>
@@ -133,7 +133,7 @@ undefined
 <script>
 /* ================= DATOS: fuente única (reemplazable por Excel/Sheets/API) ================= */
 let DB=null,META=null;
-undefined
+const U={matches:[],informes:[],files:[],photos:{},branding:{},rec:{},market:{},searches:[],mkrev:{},brutos:[],agenda:[],ineto:[],igen:[],sofastats:{}};
 /* ================= STORAGE: IndexedDB local (solo este navegador). Futuro: reemplazar Store por API / base online ================= */
 const Store={db:null,open(){return new Promise((res,rej)=>{const r=indexedDB.open('scoutpro',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>{this.db=r.result;res()};r.onerror=()=>rej(r.error)})},
  get(k){return new Promise(res=>{try{const q=this.db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(undefined)}catch(e){res(undefined)}})},
@@ -726,7 +726,7 @@ const CLOUD={
   url:'https://iuufnafevroywwbcafgp.supabase.co',
   key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dWZuYWZldnJveXd3YmNhZmdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNTU0NDUsImV4cCI6MjEwNzYzMTQ0NX0.mO6lMo3YLQfCZrPMMntXjGvbLTtGh2GSdMDZH2T8eMA'
 };
-const CL_ARR=['matches','informes','brutos','agenda','searches','files','ineto','igen'],undefined,CL_ALL=CL_ARR.concat(CL_MAP);
+const CL_ARR=['matches','informes','brutos','agenda','searches','files','ineto','igen'],CL_MAP=['rec','market','mkrev','photos','branding','sofastats'],CL_ALL=CL_ARR.concat(CL_MAP);
 const CL={cfg:null,sess:null,st:'none',last:null,err:'',conf:[],busy:false,again:false,base:{},timer:null,motherNew:false};
 const canon=o=>o===null||typeof o!=='object'?JSON.stringify(o):Array.isArray(o)?'['+o.map(canon).join(',')+']':'{'+Object.keys(o).filter(k=>o[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+canon(o[k])).join(',')+'}';
 const hsh=s=>{let a=5381,b=2166136261;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);a=((a<<5)+a+c)|0;b=Math.imul(b^c,16777619)}return(a>>>0).toString(36)+(b>>>0).toString(36)+s.length};
@@ -868,7 +868,7 @@ document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>{if(a.dataset.v==='i
 $('#sync').onclick=()=>toast('Conexión con Google Sheets pendiente de configuración');
 $('#xl').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)loadExcelMotherBase(f)};
 $('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')};
-(async()=>{try{await Store.open();for(const k of ['matches','informes','files','ineto','igen'])U[k]=(await Store.get(k))||[];U.photos=(await Store.get('photos'))||{};U.branding=(await Store.get('branding'))||{};applyBranding();U.market=(await Store.get('market'))||{};U.searches=(await Store.get('searches'))||[];U.mkrev=(await Store.get('mkrev'))||{};U.brutos=(await Store.get('brutos'))||[];U.agenda=(await Store.get('agenda'))||[];undefined
+(async()=>{try{await Store.open();for(const k of ['matches','informes','files','ineto','igen'])U[k]=(await Store.get(k))||[];U.photos=(await Store.get('photos'))||{};U.branding=(await Store.get('branding'))||{};applyBranding();U.market=(await Store.get('market'))||{};U.searches=(await Store.get('searches'))||[];U.mkrev=(await Store.get('mkrev'))||{};U.brutos=(await Store.get('brutos'))||[];U.agenda=(await Store.get('agenda'))||[];U.rec=(await Store.get('rec'))||{};U.sofastats=(await Store.get('sofastats'))||{};S.rec=U.rec;
  const m=await Store.get('mother');if(m&&m.db){applyMother(m.db,m.meta);clInit();return}}catch(e){toast('Almacenamiento local no disponible: los datos no se conservarán')}
  chip();show('home');clInit()})();
 
