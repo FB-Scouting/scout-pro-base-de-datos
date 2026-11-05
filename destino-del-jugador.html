@@ -1178,8 +1178,8 @@ function evaluarEncaje(contexto, club, pesos, direccion, permitirDescensos){
   if(sVsLiga!==null && sVsLiga>=70) positivos.push('la liga objetivo acompaña su crecimiento');
   if(sContexto>=65) positivos.push('contexto favorable (edad/nacionalidad)');
 
-  if(tacticoClub.hayPerfil){positivos.push('perfil de club cargado: '+(tacticoClub.perfil.perfiles||tacticoClub.perfil.modelo||'necesidades tácticas definidas'));if(!tacticoClub.posicionOk)negativos.push('posición fuera de las prioridades declaradas por el club')}
   const negativos = [];
+  if(tacticoClub.hayPerfil){positivos.push('perfil de club cargado: '+(tacticoClub.perfil.perfiles||tacticoClub.perfil.modelo||'necesidades tácticas definidas'));if(!tacticoClub.posicionOk)negativos.push('posición fuera de las prioridades declaradas por el club')}
   if(sVsClub!==null && sVsClub<50) negativos.push('brecha de nivel con el club');
   if(movimiento.tipo==='descenso') negativos.push('el club está por debajo de su categoría actual');
   if(encajeTact.valor<50) negativos.push('estilo de juego no del todo afín');
