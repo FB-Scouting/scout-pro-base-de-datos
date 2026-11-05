@@ -88,6 +88,7 @@ h1,h2,h3,h4 { font-family:'Space Grotesk',sans-serif; }
 .modo-btn small { display:block; color:var(--ink-dim); font-size:11px; font-weight:400; font-family:'Inter',sans-serif; margin-top:5px; }
 .modo-btn:hover { border-color:rgba(139,107,255,.4); }
 .modo-btn.activo { background:rgba(139,107,255,.12); border-color:rgba(139,107,255,.6); box-shadow:0 0 20px -8px rgba(139,107,255,.5); }
+#panelPerfilClub input,#panelPerfilClub textarea{font:12px Inter,sans-serif}#panelPerfilClub .campo{min-width:220px}#panelPerfilClub .ficha-nota{line-height:1.55}
 @media (max-width:700px){ .modo-toggle { grid-template-columns:1fr; } .modo-toggle-3 { grid-template-columns:1fr; } }
 
 .fila-carga { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-end; }
@@ -374,6 +375,14 @@ h1,h2,h3,h4 { font-family:'Space Grotesk',sans-serif; }
     </div>
   </div>
 
+  <div class="panel" id="panelPerfilClub" style="display:none;">
+    <div class="panel-header"><span class="eyebrow">PERFIL TÁCTICO DEL CLUB</span><span class="hex-icon">⚽</span></div>
+    <div class="ficha-nota" style="margin-bottom:12px">Información del equipo para fundamentar el matching. Se guarda en SCOUTPRO y se sincroniza con tu cuenta; no modifica la Base Madre.</div>
+    <div class="fila-carga"><div class="campo"><label>Entrenador</label><input id="pcEntrenador" type="text" placeholder="Nombre del DT"></div><div class="campo"><label>Modelo / idea de juego</label><input id="pcModelo" type="text" placeholder="Presión alta, posesión, amplitud..."></div><div class="campo"><label>Posiciones prioritarias</label><input id="pcPosiciones" type="text" placeholder="Defensor, mediocampista..."></div></div>
+    <div class="fila-carga" style="margin-top:10px"><div class="campo"><label>Perfiles / funciones buscadas</label><input id="pcPerfiles" type="text" placeholder="Central con salida, lateral profundo..."></div><div class="campo"><label>Rasgos tácticos (separados por coma)</label><input id="pcRasgos" type="text" placeholder="salida en corto, pressing alto, amplitud"></div></div>
+    <div class="fila-carga" style="margin-top:10px"><div class="campo"><label>Observaciones y necesidades detectadas</label><textarea id="pcNotas" rows="3" style="width:100%;padding:10px;background:rgba(5,8,18,.7);border:1px solid var(--line);border-radius:10px;color:var(--ink)" placeholder="Qué necesita el equipo y por qué."></textarea></div></div>
+    <div class="fila-carga" style="margin-top:10px;align-items:center"><button class="btn" id="pcGuardar" type="button">Guardar perfil táctico</button><button class="btn btn-secundario" id="pcLimpiar" type="button">Limpiar perfil</button><span id="pcEstado" class="ficha-nota">Sin perfil táctico cargado</span></div>
+  </div>
   <div class="panel" id="panelComparar" style="display:none;">
     <div class="panel-header">
       <span class="eyebrow">3. ELEGIR CLUB Y 2-3 CANDIDATOS</span>
@@ -547,6 +556,8 @@ document.getElementById('selectJugador').addEventListener('change', onJugadorSel
 document.getElementById('btnMatchear').addEventListener('click', correrMatching);
 document.getElementById('buscarClub').addEventListener('input', filtrarClubesSelect);
 document.getElementById('selectClub').addEventListener('change', onClubSeleccionado);
+document.getElementById('pcGuardar').addEventListener('click', guardarPerfilClub);
+document.getElementById('pcLimpiar').addEventListener('click', limpiarPerfilClub);
 document.getElementById('btnBuscarCandidatos').addEventListener('click', correrMatchingInverso);
 document.getElementById('selectClubComparar').addEventListener('change', onComparacionInputChange);
 ['compararJugador1','compararJugador2','compararJugador3'].forEach(id=>{
@@ -698,6 +709,7 @@ function cambiarModo(modo){
   document.getElementById('panelJugador').style.display = modo==='j2c' ? 'block' : 'none';
   document.getElementById('panelClub').style.display = modo==='c2j' ? 'block' : 'none';
   document.getElementById('panelComparar').style.display = modo==='comparar' ? 'block' : 'none';
+  document.getElementById('panelPerfilClub').style.display = modo==='c2j' && document.getElementById('selectClub').value ? 'block' : 'none';
   // Cambiar de modo invalida el resultado anterior — evita mezclar rankings de distinto tipo.
   document.getElementById('panelPesos').style.display = 'none';
   document.getElementById('panelFicha').style.display = 'none';
@@ -753,9 +765,65 @@ function onClubSeleccionado(){
   document.getElementById('btnBuscarCandidatos').disabled = !val;
   const panelPesos = document.getElementById('panelPesos');
   panelPesos.style.display = val ? 'block' : 'none';
+  document.getElementById('panelPerfilClub').style.display = val ? 'block' : 'none';
+  const clubSeleccionado = buscarClubPorValorSelect(val);
+  if(clubSeleccionado) cargarPerfilClub(clubSeleccionado);
   if(val){
     requestAnimationFrame(()=> dibujarConectores('listaPesos','svgConectorPesos','.toggle-row', ()=>'rgba(139,107,255,.55)'));
   }
+}
+
+const PERFIL_CLUBES_KEY='scoutpro_perfiles_tacticos_v1';
+let PERFILES_CLUB_CLOUD={},PERFILES_CLUB_READY=false,PERFILES_CLUB_MIGRATED=false;
+function leerPerfilesClub(){return PERFILES_CLUB_READY?PERFILES_CLUB_CLOUD:(()=>{try{return JSON.parse(localStorage.getItem(PERFIL_CLUBES_KEY)||'{}')}catch(e){return {}}})()}
+function clavePerfilClub(club){return normalizarNombre([club.club,club.liga,club.pais].join('|'))}
+function enviarPerfilClub(tipo,key,profile){const target=window.parent;if(!target||target===window){document.getElementById('pcEstado').textContent='No se pudo conectar con SCOUTPRO';return}target.postMessage({type:tipo,key,profile},location.origin)}
+function cargarPerfilClub(club){const p=leerPerfilesClub()[clavePerfilClub(club)]||{};const campos={entrenador:'pcEntrenador',modelo:'pcModelo',posiciones:'pcPosiciones',perfiles:'pcPerfiles',rasgos:'pcRasgos',notas:'pcNotas'};Object.keys(campos).forEach(k=>document.getElementById(campos[k]).value=p[k]||'');document.getElementById('pcEstado').textContent=p.actualizado?'Perfil guardado · '+p.actualizado:'Sin perfil táctico cargado'}
+function guardarPerfilClub(){const club=buscarClubPorValorSelect(document.getElementById('selectClub').value);if(!club)return;const all=leerPerfilesClub(),key=clavePerfilClub(club);all[key]={entrenador:document.getElementById('pcEntrenador').value.trim(),modelo:document.getElementById('pcModelo').value.trim(),posiciones:document.getElementById('pcPosiciones').value.trim(),perfiles:document.getElementById('pcPerfiles').value.trim(),rasgos:document.getElementById('pcRasgos').value.trim(),notas:document.getElementById('pcNotas').value.trim(),actualizado:new Date().toLocaleDateString('es-AR')};PERFILES_CLUB_CLOUD=all;try{localStorage.setItem(PERFIL_CLUBES_KEY,JSON.stringify(all))}catch(e){}document.getElementById('pcEstado').textContent='Guardando y sincronizando con SCOUTPRO…';enviarPerfilClub('scoutpro:club-profile:save',key,all[key]);club.tactico=all[key];if(CLUB_ACTUAL&&clavePerfilClub(CLUB_ACTUAL)===key)recalcularSegunModo()}
+function limpiarPerfilClub(){const club=buscarClubPorValorSelect(document.getElementById('selectClub').value);if(!club)return;const key=clavePerfilClub(club),all=leerPerfilesClub();delete all[key];PERFILES_CLUB_CLOUD=all;try{localStorage.setItem(PERFIL_CLUBES_KEY,JSON.stringify(all))}catch(e){}document.getElementById('pcEstado').textContent='Eliminando perfil…';enviarPerfilClub('scoutpro:club-profile:delete',key);club.tactico=null;cargarPerfilClub(club);if(CLUB_ACTUAL&&clavePerfilClub(CLUB_ACTUAL)===key)recalcularSegunModo()}
+window.addEventListener('message',function(event){if(event.origin!==location.origin||!event.data)return;const d=event.data;if(d.type==='scoutpro:club-profiles:load'){const legacy=!PERFILES_CLUB_MIGRATED?(()=>{try{return JSON.parse(localStorage.getItem(PERFIL_CLUBES_KEY)||'{}')}catch(e){return {}}})():{};PERFILES_CLUB_MIGRATED=true;PERFILES_CLUB_CLOUD=d.profiles&&typeof d.profiles==='object'?d.profiles:{};PERFILES_CLUB_READY=true;const migrar={};Object.keys(legacy).forEach(k=>{if(!PERFILES_CLUB_CLOUD[k]){migrar[k]=legacy[k];PERFILES_CLUB_CLOUD[k]=legacy[k]}});if(Object.keys(migrar).length)window.parent.postMessage({type:'scoutpro:club-profiles:migrate',profiles:migrar},location.origin);else try{localStorage.setItem(PERFIL_CLUBES_KEY,JSON.stringify(PERFILES_CLUB_CLOUD))}catch(e){}if(CLUB_ACTUAL){cargarPerfilClub(CLUB_ACTUAL);recalcularSegunModo()}}else if(d.type==='scoutpro:club-profile:result'){if(!d.ok&&d.action==='scoutpro:club-profiles:migrate')PERFILES_CLUB_MIGRATED=false;const el=document.getElementById('pcEstado');if(el)el.textContent=d.ok?(d.action==='scoutpro:club-profile:delete'?'Perfil eliminado y sincronizado ✓':'Perfil sincronizado en la nube ✓'):'Error de sincronización: '+(d.error||'revisá la conexión');}});
+// Solo puntúa necesidades explícitas y métricas realmente disponibles. El texto libre
+// del club se interpreta como vocabulario táctico, nunca como evidencia por sí solo.
+function extraerTagsPerfilClub(perfil){
+  const normal=normalizarTexto([perfil.rasgos,perfil.modelo,perfil.perfiles,perfil.notas].filter(Boolean).join(' · '));
+  const reglas=[
+    ['salida en corto',/salida (de balon )?en corto|iniciar (desde|en) (el )?fondo|construccion (desde atras|en corto)|primer pase/],
+    ['juego asociado',/juego asociado|asociacion|combinacion|paredes|triangulaciones|circulacion/],
+    ['pressing alto',/presion alta|pressing alto|presionar arriba|presion tras perdida|recuperacion alta/],
+    ['posesion',/posesion|control del balon|dominio territorial|circulacion paciente/],
+    ['amplitud',/amplitud|abrir la cancha|juego por bandas|ocupar (todo )?el ancho/],
+    ['bloque bajo',/bloque bajo|defensa baja|repliegue bajo|defender cerca del area/],
+    ['transicion rapida',/transicion(?:es)? rapidas?|transiciones? ofensivas|ataques? rapidos?|salidas? rapidas?/],
+    ['juego directo',/juego directo|pase largo|balon largo|ataque directo/],
+    ['contragolpe',/contragolpe|contraataque|transicion ofensiva/],
+    ['verticalidad',/verticalidad|juego vertical|progresar rapido|atacar espacios/]
+  ];
+  const tags=[];
+  reglas.forEach(([tag,re])=>{if(re.test(normal)&&!tags.includes(tag))tags.push(tag)});
+  normal.split(/[,;·\n]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>{
+    if(MAPA_TAGS[x]&&!tags.includes(x))tags.push(x);
+  });
+  return tags;
+}
+function evaluarPerfilTacticoClub(contexto,club){
+  const p=leerPerfilesClub()[clavePerfilClub(club)]||club.tactico||{};
+  const tags=extraerTagsPerfilClub(p), stats=contexto.statsFila||{};
+  const metricas={posesion:['Pases Precisos %'],salidaCorto:['Pases Precisos %'],juegoAsociado:['Pases Precisos %'],pressingAlto:['Duelos Totales%','Intercepciones'],bloqueBajo:['Despejes','Duelos Totales%']};
+  const valores=[],evidencia=[],sinMedicion=[];
+  tags.forEach(tag=>{
+    const key=MAPA_TAGS[tag],campos=key?metricas[key]:null;
+    if(!campos){sinMedicion.push(tag);return}
+    const disponibles=campos.map(c=>({campo:c,valor:normalizar(valorNumerico(stats[c]),(contexto.rangosStats||{})[c])})).filter(x=>x.valor!==null);
+    if(!disponibles.length){sinMedicion.push(tag);return}
+    const valor=disponibles.reduce((a,x)=>a+x.valor,0)/disponibles.length;
+    valores.push(valor);evidencia.push({tag,valor:Math.round(valor),campos:disponibles.map(x=>x.campo)});
+  });
+  const scoreRasgos=valores.length?valores.reduce((a,b)=>a+b,0)/valores.length:null;
+  const req=(p.posiciones||'').split(/[,;/]+/).map(x=>grupoPosicion(x.trim())).filter(Boolean);
+  const posicionOk=!req.length||req.includes(contexto.grupo),scorePos=req.length?(posicionOk?100:20):null;
+  const scores=[];if(scoreRasgos!==null)scores.push({valor:scoreRasgos,peso:.7});if(scorePos!==null)scores.push({valor:scorePos,peso:.3});
+  const peso=scores.reduce((a,x)=>a+x.peso,0),score=peso?scores.reduce((a,x)=>a+x.valor*x.peso,0)/peso:null;
+  return {score,perfil:p,posicionOk,hayPerfil:tags.length>0||!!p.posiciones,tags,evidencia,sinMedicion,scoreRasgos,scorePos};
 }
 
 function onComparacionInputChange(){
@@ -800,13 +868,14 @@ function obtenerPesos(){
 
 // ---------- Lógica de posición ----------
 function grupoPosicion(posicion){
-  const p = normalizarNombre(posicion);
-  if(p.includes('arquero') || p.includes('portero')) return 'arquero';
-  if(p.includes('lateral') || p.includes('defensa') || p.includes('libero') || p.includes('líbero')) return 'defensor';
-  if(p.includes('delantero') || p.includes('extremo') || p.includes('punta') || p.includes('wing')) return 'delantero';
-  return 'mediocampista'; // mediocentro, volante, pivote, enganche, mediocampista
+  const p = normalizarTexto(posicion).replace(/[_-]+/g,' ').trim();
+  if(p.includes('arquero') || p.includes('portero') || p==='gk') return 'arquero';
+  // Distinguir centrales/defensores de mediocentros.
+  const esMediocentro = p.includes('volante central') || p.includes('mediocentro') || p.includes('mediocampista central') || p.includes('pivote');
+  if(p.includes('lateral') || p.includes('carrilero') || p.includes('defensa') || p.includes('defensor') || p.includes('zaguero') || p.includes('libero') || p.includes('stopper') || p.includes('marcador central') || p==='dfc' || p==='dcd' || p==='dci' || p==='cb' || (p.includes('central')&&!esMediocentro)) return 'defensor';
+  if(p.includes('delantero') || p.includes('extremo') || p.includes('punta') || p.includes('wing') || p.includes('nueve') || p==='9') return 'delantero';
+  return 'mediocampista'; // mediocentro, volante, pivote, enganche, interior
 }
-
 function statsRelevantesPorPosicion(grupo){
   const mapa = {
     arquero: ['Paradas','Duelos Totales%','Aereos %'],
@@ -1055,15 +1124,14 @@ const MAPA_TAGS = {
 };
 
 function scoreEncajeTactico(estiloClubTexto, perfilJugador){
-  const tags = estiloClubTexto.split('·').map(t=>normalizarNombre(t)).filter(Boolean);
-  if(!tags.length) return { valor:50, tags:[] };
+  const tags = (estiloClubTexto||'').split('·').map(t=>normalizarTexto(t)).filter(Boolean);
+  if(!tags.length) return { valor:50, tags:[], tagsTexto:[] };
   let suma = 0, contados = 0;
   const detalle = [];
   tags.forEach(tag=>{
     const key = MAPA_TAGS[tag];
-    if(key && perfilJugador[key]!==undefined){
-      suma += perfilJugador[key];
-      contados++;
+    if(key && Number.isFinite(perfilJugador[key])){
+      suma += perfilJugador[key]; contados++;
       detalle.push({ tag, valor: perfilJugador[key] });
     }
   });
@@ -1111,7 +1179,7 @@ function construirContextoJugador(jugadorInfo, rangos){
   const rendStats = scoreRendimientoStats(statsFila, grupo, rangos);
   const categoriaInfo = determinarCategoriaYNivelBase(jugadorInfo, rendimiento);
   const nivelInfo = calcularNivelEfectivo(jugadorInfo, rendimiento, grupo, rendStats, categoriaInfo);
-  return { jugadorInfo, grupo, statsFila, rendimiento, perfilTactico, rendStats, categoriaInfo, nivelInfo, nombreJugador };
+  return { jugadorInfo, grupo, statsFila, rendimiento, perfilTactico, rendStats, categoriaInfo, nivelInfo, nombreJugador, rangosStats:rangos };
 }
 
 // Evalúa un club puntual contra un contexto de jugador ya construido. Usado tanto para
@@ -1122,7 +1190,9 @@ function evaluarEncaje(contexto, club, pesos, direccion, permitirDescensos){
 
   const sVsClub = scoreNivelDestino(nivelEfectivo, club.nivelClub);
   const sVsLiga = scoreLigaDestino(categoriaInfo.nivelLigaActual, club.nivelLiga);
-  const encajeTact = scoreEncajeTactico(club.estilo, perfilTactico);
+  const encajeBase = scoreEncajeTactico(club.estilo, perfilTactico);
+  const tacticoClub = evaluarPerfilTacticoClub(contexto, club);
+  const encajeTact = tacticoClub.score===null ? encajeBase : {...encajeBase, valor:Math.round(encajeBase.valor*0.4+tacticoClub.score*0.6)};
   const sRend = rendStats;
   const sContexto = scoreContexto(jugadorInfo, club);
   const movimiento = clasificarMovimiento(categoriaInfo.nivelLigaActual, club, categoriaInfo);
@@ -1155,6 +1225,7 @@ function evaluarEncaje(contexto, club, pesos, direccion, permitirDescensos){
   if(sContexto>=65) positivos.push('contexto favorable (edad/nacionalidad)');
 
   const negativos = [];
+  if(tacticoClub.hayPerfil){positivos.push(tacticoClub.tags.length?'necesidades tácticas del club identificadas: '+tacticoClub.tags.join(', '):'posición incluida entre las prioridades declaradas por el club');if(!tacticoClub.posicionOk)negativos.push('posición fuera de las prioridades declaradas por el club')}
   if(sVsClub!==null && sVsClub<50) negativos.push('brecha de nivel con el club');
   if(movimiento.tipo==='descenso') negativos.push('el club está por debajo de su categoría actual');
   if(encajeTact.valor<50) negativos.push('estilo de juego no del todo afín');
@@ -1166,7 +1237,7 @@ function evaluarEncaje(contexto, club, pesos, direccion, permitirDescensos){
   return {
     club, pctFinal, clasif, penalizaciones, positivos, negativos, movimiento,
     subScores: { sVsClub, encajeTact: encajeTact.valor, sRend, sVsLiga, sContexto },
-    tagsDetalle: encajeTact.tags, tagsTexto: encajeTact.tagsTexto,
+    tagsDetalle: encajeTact.tags, tagsTexto: encajeTact.tagsTexto, tacticoClub,
     pasaFiltro
   };
 }
@@ -1551,8 +1622,10 @@ function detalleClubHtml(r, id){
           ${r.positivos.length ? `<div>✅ A favor: ${r.positivos.join(', ')}.</div>` : ''}
           ${r.negativos.length ? `<div>⚠️ En contra: ${r.negativos.join(', ')}.</div>` : ''}
           ${r.penalizaciones.length ? `<div>🔻 Penalizaciones aplicadas: ${r.penalizaciones.join('; ')}.</div>` : ''}
+          ${r.tacticoClub?.evidencia?.length ? `<div><b>Indicadores estadísticos orientativos:</b> ${r.tacticoClub.evidencia.map(x=>x.tag+' ('+x.valor+'/100)').join(', ')}.</div>` : ''}
+          ${r.tacticoClub?.sinMedicion?.length ? `<div class="mu">Sin métrica suficiente para valorar: ${r.tacticoClub.sinMedicion.join(', ')}.</div>` : ''}
         </div>
-        <div class="tags-club">Estilo del club: ${r.tagsTexto.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+        <div class="tags-club">Estilo del club: ${(r.tagsTexto||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
       </div>`;
 }
 

@@ -284,7 +284,48 @@ function sendToExternalBruto(record,player){
  if(frame&&frame.contentWindow)frame.contentWindow.postMessage({type:'scoutpro-report:fill-external-bruto',module:'scoutpro',payload:pendingExternalBruto},'https://fb-scouting.github.io');
 }
 window.addEventListener('message',e=>{if(e.origin!=='https://fb-scouting.github.io'||!e.data)return;
- if(e.data.type==='scoutpro:matching-ready')$('#destinoStatus').textContent='Base Madre conectada ✓ · '+e.data.players+' jugadores';
+ if(e.data.type==='scoutpro:matching-ready'){ $('#destinoStatus').textContent='Base Madre conectada ✓ · '+e.data.players+' jugadores'; const d=$('#destinoFrame');if(d&&e.source===d.contentWindow)d.contentWindow.postMessage({type:'scoutpro:club-profiles:load',profiles:U.clubprofiles||{}},e.origin); }
+ if(e.data.type==='scoutpro:club-profile:save'||e.data.type==='scoutpro:club-profile:delete'||e.data.type==='scoutpro:club-profiles:migrate'){
+  const d=$('#destinoFrame');if(!d||e.source!==d.contentWindow)return;
+  (async()=>{
+   const type=e.data.type,key=String(e.data.key||'');
+   const incoming=e.data.profiles&&typeof e.data.profiles==='object'?e.data.profiles:{};
+   try{
+    if(!cloudReady()||!CL.base.init)throw new Error('Iniciá sesión y completá la primera sincronización de SCOUTPRO antes de guardar perfiles tácticos.');
+    if(type==='scoutpro:club-profiles:migrate'){
+     Object.keys(incoming).forEach(k=>{if(k&&k.length<=300&&!U.clubprofiles[k])U.clubprofiles[k]=incoming[k]});
+    }else{
+     if(!key||key.length>300)throw new Error('Identificador de club inválido.');
+     if(type==='scoutpro:club-profile:delete')delete U.clubprofiles[key];
+     else{const p=e.data.profile;if(!p||typeof p!=='object')throw new Error('Perfil táctico inválido.');U.clubprofiles[key]=p;}
+    }
+    if(!await saveU('clubprofiles'))throw new Error('No se pudo guardar el perfil en el almacenamiento local.');
+    const deadline=Date.now()+30000;
+    let confirmed=false;
+    while(Date.now()<deadline){
+     if(CL.busy){await new Promise(resolve=>setTimeout(resolve,150));continue;}
+     await clSync();
+     if(CL.busy){await new Promise(resolve=>setTimeout(resolve,150));continue;}
+     if(CL.st!=='ok'&&CL.st!=='conf')throw new Error(CL.err||'No se pudo sincronizar con la nube.');
+     const cloud=CL.base.clubprofiles||{},local=clLocal('clubprofiles');
+     if(type==='scoutpro:club-profile:delete')confirmed=!cloud[key];
+     else if(type==='scoutpro:club-profile:save'){
+      const l=local.get(key),c=cloud[key];confirmed=!!(l&&c&&c.h===l.h);
+     }else{
+      const keys=Object.keys(incoming).filter(k=>k&&k.length<=300);
+      confirmed=keys.every(k=>{const l=local.get(k),c=cloud[k];return !!(l&&c&&c.h===l.h)});
+     }
+     if(confirmed)break;
+     await new Promise(resolve=>setTimeout(resolve,250));
+    }
+    if(!confirmed)throw new Error('La nube todavía no confirmó todos los cambios. El perfil quedó guardado localmente; volvé a sincronizar en unos segundos.');
+    d.contentWindow.postMessage({type:'scoutpro:club-profile:result',key,ok:true,action:type},e.origin);
+    if(type==='scoutpro:club-profiles:migrate')d.contentWindow.postMessage({type:'scoutpro:club-profiles:load',profiles:U.clubprofiles||{}},e.origin);
+   }catch(err){
+    d.contentWindow.postMessage({type:'scoutpro:club-profile:result',key,ok:false,action:type,error:err.message||'Error de sincronización'},e.origin);
+   }
+  })();
+ }
  if(e.data.type==='scoutpro-report:external-bruto-ready'){const f=$('#xf_ibext');if(pendingExternalBruto&&f&&e.source===f.contentWindow)f.contentWindow.postMessage({type:'scoutpro-report:fill-external-bruto',module:'scoutpro',payload:pendingExternalBruto},'https://fb-scouting.github.io')}
  if(e.data.type==='scoutpro-report:lookup-player-photo'){
   const f=$('#xf_ibext');if(!f||e.source!==f.contentWindow)return;
@@ -715,7 +756,7 @@ const CLOUD={
   url:'https://iuufnafevroywwbcafgp.supabase.co',
   key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dWZuYWZldnJveXd3YmNhZmdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNTU0NDUsImV4cCI6MjEwNzYzMTQ0NX0.mO6lMo3YLQfCZrPMMntXjGvbLTtGh2GSdMDZH2T8eMA'
 };
-const CL_ARR=['matches','informes','brutos','agenda','searches','files','ineto','igen'],CL_MAP=['rec','market','mkrev','photos','branding','sofastats'],CL_ALL=CL_ARR.concat(CL_MAP);
+const CL_ARR=['matches','informes','brutos','agenda','searches','files','ineto','igen'],CL_MAP=['rec','market','mkrev','photos','branding','sofastats','clubprofiles'],CL_ALL=CL_ARR.concat(CL_MAP);
 const CL={cfg:null,sess:null,st:'none',last:null,err:'',conf:[],busy:false,again:false,base:{},timer:null,motherNew:false};
 const canon=o=>o===null||typeof o!=='object'?JSON.stringify(o):Array.isArray(o)?'['+o.map(canon).join(',')+']':'{'+Object.keys(o).filter(k=>o[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+canon(o[k])).join(',')+'}';
 const hsh=s=>{let a=5381,b=2166136261;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);a=((a<<5)+a+c)|0;b=Math.imul(b^c,16777619)}return(a>>>0).toString(36)+(b>>>0).toString(36)+s.length};
@@ -723,7 +764,7 @@ const encId=(k,id)=>CL_MAP.includes(k)?'u:'+encodeURIComponent(id):String(id),de
 const cloudOn=()=>!!(CL.cfg&&CL.cfg.url&&CL.cfg.key),cloudReady=()=>cloudOn()&&!!CL.sess;
 const cloudNote=()=>cloudReady()?' · se está subiendo a la nube…':' (nube: no activada)';
 const cloudInfo=()=>cloudReady()?'Se guarda en este navegador y se sincroniza con tu cuenta en la nube (mirá el estado arriba).':'Se guarda solo en este navegador. La sincronización en la nube todavía no está activada.';
-const CL_COLL={branding:'Configuración institucional',matches:'Partidos',informes:'Informes',brutos:'Informes brutos',ineto:'Informes netos',igen:'Generador automático',agenda:'Agenda',searches:'Búsquedas',files:'Reportes',rec:'Recomendación',market:'Mercado',mkrev:'Revisión de mercado',photos:'Fotos'};
+const CL_COLL={branding:'Configuración institucional',matches:'Partidos',informes:'Informes',brutos:'Informes brutos',ineto:'Informes netos',igen:'Generador automático',agenda:'Agenda',searches:'Búsquedas',files:'Reportes',rec:'Recomendación',market:'Mercado',mkrev:'Revisión de mercado',photos:'Fotos',clubprofiles:'Perfiles tácticos de clubes'};
 function clTitle(k,d){if(!d)return'';try{if(k==='ineto'||k==='igen')return(d.jugador||d.titulo||'Informe')+' · '+fdate(d.fecha);if(k==='informes'||k==='brutos')return(d.jugador||'')+' · '+fdate(d.fecha);if(k==='agenda')return agTitle(d)+' · '+fdate(d.fecha);if(k==='matches')return matchLabel(d);if(k==='searches'||k==='files')return d.name;return''}catch(e){return''}}
 function clLocal(k){const m=new Map();if(CL_ARR.includes(k))U[k].forEach(r=>{const d=k==='files'?{...r,data:undefined}:r;m.set(String(r.id),{d,h:hsh(canon(d))})});else Object.keys(U[k]).forEach(id=>{const d={v:U[k][id]};m.set(id,{d,h:hsh(canon(d))})});return m}
 function clPending(){let n=0;CL_ALL.forEach(k=>{const loc=clLocal(k),B=CL.base[k]||{};loc.forEach((L,id)=>{if(!B[id]||B[id].h!==L.h)n++});Object.keys(B).forEach(id=>{if(!loc.has(id))n++})});return n}
@@ -772,7 +813,7 @@ async function clSync(){if(CL.busy){CL.again=true;return}if(!cloudReady())return
  try{await clAuth();const rows=await clPull(),byK={};rows.forEach(r=>{(byK[r.coleccion]=byK[r.coleccion]||new Map()).set(decId(r.coleccion,r.id),r)});CL.conf=[];
   for(const k of CL_ALL)await clColl(k,byK[k]||new Map(),touched);await clMother();CL.last=new Date();st=CL.conf.length?'conf':'ok'}
  catch(e){CL.err=e.message;st=e.login?'login':e.net?'off':'err'}
- finally{try{for(const k of touched)await Store.set(k,U[k]);await Store.set('syncbase',CL.base)}catch(e){}CL.busy=false;clSet(st);if(touched.size)clRefreshUI();['ineto','igen'].forEach(k=>{const f=$('#xf_'+k);if(f&&f.contentWindow)try{f.contentWindow.postMessage({type:'scoutpro-report:refresh',module:k},'https://fb-scouting.github.io')}catch(e){}});if(CL.again){CL.again=false;clSchedule()}}}
+ finally{try{for(const k of touched)await Store.set(k,U[k]);await Store.set('syncbase',CL.base)}catch(e){}CL.busy=false;clSet(st);if(touched.size)clRefreshUI();const destinoFrame=$('#destinoFrame');if(destinoFrame&&destinoFrame.contentWindow)try{destinoFrame.contentWindow.postMessage({type:'scoutpro:club-profiles:load',profiles:U.clubprofiles||{}},'https://fb-scouting.github.io')}catch(e){};['ineto','igen'].forEach(k=>{const f=$('#xf_'+k);if(f&&f.contentWindow)try{f.contentWindow.postMessage({type:'scoutpro-report:refresh',module:k},'https://fb-scouting.github.io')}catch(e){}});if(CL.again){CL.again=false;clSchedule()}}}
 function clSchedule(){if(!cloudReady()){return}clSet(CL.st);if(!CL.base.init)return;clearTimeout(CL.timer);CL.timer=setTimeout(()=>clSync(),1500)}
 const clToastResult=()=>toast(CL.st==='ok'?'Sincronizado con la nube ✓':CL.st==='conf'?'Sincronizado, con conflictos para revisar':'No se pudo sincronizar: '+CL.err);
 async function clSyncManual(){if(!cloudReady())return clModal();
@@ -857,7 +898,7 @@ document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>{if(a.dataset.v==='i
 $('#sync').onclick=()=>toast('Conexión con Google Sheets pendiente de configuración');
 $('#xl').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)loadExcelMotherBase(f)};
 $('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')};
-(async()=>{try{await Store.open();for(const k of ['matches','informes','files','ineto','igen'])U[k]=(await Store.get(k))||[];U.photos=(await Store.get('photos'))||{};U.branding=(await Store.get('branding'))||{};applyBranding();U.market=(await Store.get('market'))||{};U.searches=(await Store.get('searches'))||[];U.mkrev=(await Store.get('mkrev'))||{};U.brutos=(await Store.get('brutos'))||[];U.agenda=(await Store.get('agenda'))||[];U.rec=(await Store.get('rec'))||{};U.sofastats=(await Store.get('sofastats'))||{};S.rec=U.rec;
+(async()=>{try{await Store.open();for(const k of ['matches','informes','files','ineto','igen'])U[k]=(await Store.get(k))||[];U.photos=(await Store.get('photos'))||{};U.branding=(await Store.get('branding'))||{};applyBranding();U.market=(await Store.get('market'))||{};U.searches=(await Store.get('searches'))||[];U.mkrev=(await Store.get('mkrev'))||{};U.brutos=(await Store.get('brutos'))||[];U.agenda=(await Store.get('agenda'))||[];U.rec=(await Store.get('rec'))||{};U.sofastats=(await Store.get('sofastats'))||{};U.clubprofiles=(await Store.get('clubprofiles'))||{};S.rec=U.rec;
  const m=await Store.get('mother');if(m&&m.db){applyMother(m.db,m.meta);clInit();return}}catch(e){toast('Almacenamiento local no disponible: los datos no se conservarán')}
  chip();show('home');clInit()})();
 
