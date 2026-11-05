@@ -793,7 +793,7 @@ function extraerTagsPerfilClub(perfil){
     ['posesion',/posesion|control del balon|dominio territorial|circulacion paciente/],
     ['amplitud',/amplitud|abrir la cancha|juego por bandas|ocupar (todo )?el ancho/],
     ['bloque bajo',/bloque bajo|defensa baja|repliegue bajo|defender cerca del area/],
-    ['transicion rapida',/transicion rapida|transiciones ofensivas|ataque rapido|salida rapida/],
+    ['transicion rapida',/transicion(?:es)? rapidas?|transiciones? ofensivas|ataques? rapidos?|salidas? rapidas?/],
     ['juego directo',/juego directo|pase largo|balon largo|ataque directo/],
     ['contragolpe',/contragolpe|contraataque|transicion ofensiva/],
     ['verticalidad',/verticalidad|juego vertical|progresar rapido|atacar espacios/]
@@ -808,7 +808,7 @@ function extraerTagsPerfilClub(perfil){
 function evaluarPerfilTacticoClub(contexto,club){
   const p=leerPerfilesClub()[clavePerfilClub(club)]||club.tactico||{};
   const tags=extraerTagsPerfilClub(p), stats=contexto.statsFila||{};
-  const metricas={posesion:['Pases Precisos %'],salidaCorto:['Pases Precisos %'],juegoAsociado:['Pases Precisos %','Asistencias','Xa'],pressingAlto:['Duelos Totales%','Intercepciones'],bloqueBajo:['Despejes','Duelos Totales%']};
+  const metricas={posesion:['Pases Precisos %'],salidaCorto:['Pases Precisos %'],juegoAsociado:['Pases Precisos %'],pressingAlto:['Duelos Totales%','Intercepciones'],bloqueBajo:['Despejes','Duelos Totales%']};
   const valores=[],evidencia=[],sinMedicion=[];
   tags.forEach(tag=>{
     const key=MAPA_TAGS[tag],campos=key?metricas[key]:null;
@@ -868,13 +868,14 @@ function obtenerPesos(){
 
 // ---------- Lógica de posición ----------
 function grupoPosicion(posicion){
-  const p = normalizarNombre(posicion);
-  if(p.includes('arquero') || p.includes('portero')) return 'arquero';
-  if(p.includes('lateral') || p.includes('defensa') || p.includes('libero') || p.includes('líbero')) return 'defensor';
-  if(p.includes('delantero') || p.includes('extremo') || p.includes('punta') || p.includes('wing')) return 'delantero';
-  return 'mediocampista'; // mediocentro, volante, pivote, enganche, mediocampista
+  const p = normalizarTexto(posicion).replace(/[_-]+/g,' ').trim();
+  if(p.includes('arquero') || p.includes('portero') || p==='gk') return 'arquero';
+  // Distinguir centrales/defensores de mediocentros.
+  const esMediocentro = p.includes('volante central') || p.includes('mediocentro') || p.includes('mediocampista central') || p.includes('pivote');
+  if(p.includes('lateral') || p.includes('carrilero') || p.includes('defensa') || p.includes('defensor') || p.includes('zaguero') || p.includes('libero') || p.includes('stopper') || p.includes('marcador central') || p==='dfc' || p==='dcd' || p==='dci' || p==='cb' || (p.includes('central')&&!esMediocentro)) return 'defensor';
+  if(p.includes('delantero') || p.includes('extremo') || p.includes('punta') || p.includes('wing') || p.includes('nueve') || p==='9') return 'delantero';
+  return 'mediocampista'; // mediocentro, volante, pivote, enganche, interior
 }
-
 function statsRelevantesPorPosicion(grupo){
   const mapa = {
     arquero: ['Paradas','Duelos Totales%','Aereos %'],
@@ -1621,7 +1622,7 @@ function detalleClubHtml(r, id){
           ${r.positivos.length ? `<div>✅ A favor: ${r.positivos.join(', ')}.</div>` : ''}
           ${r.negativos.length ? `<div>⚠️ En contra: ${r.negativos.join(', ')}.</div>` : ''}
           ${r.penalizaciones.length ? `<div>🔻 Penalizaciones aplicadas: ${r.penalizaciones.join('; ')}.</div>` : ''}
-          ${r.tacticoClub?.evidencia?.length ? `<div><b>Evidencia táctica:</b> ${r.tacticoClub.evidencia.map(x=>x.tag+' ('+x.valor+'/100)').join(', ')}.</div>` : ''}
+          ${r.tacticoClub?.evidencia?.length ? `<div><b>Indicadores estadísticos orientativos:</b> ${r.tacticoClub.evidencia.map(x=>x.tag+' ('+x.valor+'/100)').join(', ')}.</div>` : ''}
           ${r.tacticoClub?.sinMedicion?.length ? `<div class="mu">Sin métrica suficiente para valorar: ${r.tacticoClub.sinMedicion.join(', ')}.</div>` : ''}
         </div>
         <div class="tags-club">Estilo del club: ${(r.tagsTexto||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
