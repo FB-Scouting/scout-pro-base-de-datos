@@ -326,7 +326,7 @@ window.addEventListener('message',e=>{if(e.origin!=='https://fb-scouting.github.
    }
   })();
  }
- if(e.data.type==='scoutpro-report:external-bruto-ready'){const f=$('#xf_ibext');if(f&&e.source===f.contentWindow){if(S.br&&S.br.externalBruto)f.contentWindow.postMessage({type:'scoutpro-report:restore-external-bruto',data:S.br.externalBruto},'https://fb-scouting.github.io');else if(pendingExternalBruto)f.contentWindow.postMessage({type:'scoutpro-report:fill-external-bruto',module:'scoutpro',payload:pendingExternalBruto},'https://fb-scouting.github.io');else f.contentWindow.postMessage({type:'scoutpro-report:clear-external-bruto'},'https://fb-scouting.github.io')}}
+ if(e.data.type==='scoutpro-report:external-bruto-ready'){const f=$('#xf_ibext');if(f&&e.source===f.contentWindow){if(S.br&&S.br.externalBruto)f.contentWindow.postMessage({type:'scoutpro-report:restore-external-bruto',data:S.br.externalBruto},'https://fb-scouting.github.io');else if(pendingExternalBruto){f.contentWindow.postMessage({type:'scoutpro-report:fill-external-bruto',module:'scoutpro',payload:pendingExternalBruto},'https://fb-scouting.github.io');pendingExternalBruto=null}else f.contentWindow.postMessage({type:'scoutpro-report:clear-external-bruto'},'https://fb-scouting.github.io')}}
  if(e.data.type==='scoutpro-report:lookup-player-photo'){
   const f=$('#xf_ibext');if(!f||e.source!==f.contentWindow)return;
   const name=String(e.data.name||'').trim(),club=String(e.data.club||'').trim();
