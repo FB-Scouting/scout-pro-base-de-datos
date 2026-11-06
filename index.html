@@ -326,7 +326,7 @@ window.addEventListener('message',e=>{if(e.origin!=='https://fb-scouting.github.
    }
   })();
  }
- if(e.data.type==='scoutpro-report:external-bruto-ready'){const f=$('#xf_ibext');if(pendingExternalBruto&&f&&e.source===f.contentWindow)f.contentWindow.postMessage({type:'scoutpro-report:fill-external-bruto',module:'scoutpro',payload:pendingExternalBruto},'https://fb-scouting.github.io')}
+ if(e.data.type==='scoutpro-report:external-bruto-ready'){const f=$('#xf_ibext');if(f&&e.source===f.contentWindow){if(S.br&&S.br.externalBruto)f.contentWindow.postMessage({type:'scoutpro-report:restore-external-bruto',data:S.br.externalBruto},'https://fb-scouting.github.io');else if(pendingExternalBruto)f.contentWindow.postMessage({type:'scoutpro-report:fill-external-bruto',module:'scoutpro',payload:pendingExternalBruto},'https://fb-scouting.github.io')}}
  if(e.data.type==='scoutpro-report:lookup-player-photo'){
   const f=$('#xf_ibext');if(!f||e.source!==f.contentWindow)return;
   const name=String(e.data.name||'').trim(),club=String(e.data.club||'').trim();
@@ -602,14 +602,14 @@ const BRG=[['Técnica',['Controles','Perfiles','Pase corto','Pase largo','Pase f
 const BRC=[];BRG.forEach(([g,L])=>L.forEach(l=>BRC.push({g,l,k:norm(g).replace(/\s+/g,'_')+'.'+norm(l).replace(/[^a-z0-9]+/g,'_')})));
 const FORMS_BR=['4-4-2','4-4-2 Rombo','4-3-3','4-2-3-1','4-1-4-1','4-5-1','4-2-2-2','3-5-2','3-4-3','3-4-2-1','3-3-3-1','5-3-2','5-4-1'];
 const uuid=()=>crypto.randomUUID?crypto.randomUUID():'b'+Date.now()+Math.random().toString(16).slice(2);
-const brBlank=()=>({id:null,jugador:S.cur||'',fecha:todayISO(),comp:'',local:'',visit:'',res:'',formacion:'',linea:'',rol:'',obs:'',matchId:'',crit:{},generador:null});
-const brSnap=b=>JSON.stringify([b.jugador,b.fecha,b.comp,b.local,b.visit,b.res,b.formacion,b.linea,b.rol,b.obs,b.matchId,BRC.map(c=>b.crit[c.k]||null),b.generador||null]);
+const brBlank=()=>({id:null,jugador:S.cur||'',fecha:todayISO(),comp:'',local:'',visit:'',res:'',formacion:'',linea:'',rol:'',obs:'',matchId:'',crit:{},generador:null,externalBruto:null});
+const brSnap=b=>JSON.stringify([b.jugador,b.fecha,b.comp,b.local,b.visit,b.res,b.formacion,b.linea,b.rol,b.obs,b.matchId,BRC.map(c=>b.crit[c.k]||null),b.generador||null,b.externalBruto||null]);
 const brDirty=()=>brSnap(S.br)!==S.brRef,brSetRef=()=>S.brRef=brSnap(S.br);
 function brAvg(crit){const v=Object.values(crit).filter(c=>c&&!c.no&&num(c.v)).map(c=>c.v);return{avg:v.length?mean(v):null,n:v.length}}
 const brAvgTxt=a=>a==null?'Sin puntaje':a.toFixed(1);
 function askConfirm(msg,yes){modal(`<h2>Confirmar</h2><p>${msg}</p><p><button class="btn on" id="ac_y">Sí, continuar</button> <button class="btn" onclick="closeM()">Cancelar</button></p>`);$('#ac_y').onclick=()=>{closeM();yes()}}
 function dl(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:type||'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove()}
-function brRecord(b){const a=brAvg(b.crit);return{id:b.id,jugador:b.jugador,fecha:b.fecha,comp:b.comp,local:b.local,visit:b.visit,res:b.res,formacion:b.formacion,linea:b.linea,rol:b.rol,obs:b.obs,matchId:b.matchId||'',crit:JSON.parse(JSON.stringify(b.crit)),generador:b.generador||null,promedio:a.avg,n:a.n}}
+function brRecord(b){const a=brAvg(b.crit);return{id:b.id,jugador:b.jugador,fecha:b.fecha,comp:b.comp,local:b.local,visit:b.visit,res:b.res,formacion:b.formacion,linea:b.linea,rol:b.rol,obs:b.obs,matchId:b.matchId||'',crit:JSON.parse(JSON.stringify(b.crit)),generador:b.generador||null,externalBruto:b.externalBruto||null,promedio:a.avg,n:a.n}}
 function brSet(k,patch){const c=Object.assign({v:null,no:false},S.br.crit[k],patch);if(c.v==null&&!c.no)delete S.br.crit[k];else S.br.crit[k]=c;brRow(k)}
 function brRow(k){const row=$('#bru [data-k="'+k+'"]');if(row){const c=S.br.crit[k]||{v:null,no:false},r=row.querySelector('input[type=range]');row.classList.toggle('no',!!c.no);r.disabled=!!c.no;r.classList.toggle('unset',c.v==null);if(c.v!=null)r.value=c.v;row.querySelector('.cv').textContent=c.no?'No obs.':(c.v==null?'—':c.v);row.querySelector('input[type=checkbox]').checked=!!c.no}
  const a=brAvg(S.br.crit);$('#bravg').textContent=brAvgTxt(a.avg);$('#brn').textContent=a.n+' de '+BRC.length+' criterios valorados'}
@@ -623,13 +623,30 @@ function brFormHTML(b){const P=DB.players.map(p=>p.n).sort((a,c)=>a.localeCompar
  <div class="card"><div class="br-criteria-grid">${BRG.map(([g,L])=>`<div class="fg br-criteria-group"><b>${g}</b>${L.map(l=>{const k=BRC.find(c=>c.g===g&&c.l===l).k,c=b.crit[k]||{v:null,no:false};return`<div class="crt ${c.no?'no':''}" data-k="${k}"><span>${l}</span><input type="range" min="1" max="10" step="1" value="${c.v??5}" class="${c.v==null?'unset':''}" ${c.no?'disabled':''} aria-label="${l}"><b class="cv">${c.no?'No obs.':(c.v==null?'—':c.v)}</b><label class="ck"><input type="checkbox" ${c.no?'checked':''}> No observado</label></div>`}).join('')}</div>`).join('')}</div></div><div class="card" style="margin-top:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">Herramienta complementaria · Informe Bruto externo</h2><a class="btn" id="xl_ibext" target="_blank" rel="noopener">Abrir en pestaña nueva ↗</a></div><div class="mu" id="xm_ibext" style="font-size:12px;margin:4px 0 8px"></div><iframe class="xf" id="xf_ibext" title="Informe Bruto externo" style="height:720px;min-height:520px"></iframe></div>`}
 function renderBruto(){if(!S.br){S.br=brBlank();brSetRef()}const b=S.br;
  $('#bru').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h2 style="font-size:20px;margin:0">Informe Bruto ${b.id?'<span class="tag gy">editando guardado</span>':'<span class="tag am">nuevo</span>'}</h2><div><button class="btn on" id="br_s">Guardar</button> <button class="btn" id="br_x">Exportar JSON</button> <button class="btn" id="br_p">Imprimir / PDF</button> <button class="btn" id="br_c">Limpiar</button></div></div><div class="mu" style="font-size:12px;margin:4px 0 8px">${cloudInfo()}</div>`+brFormHTML(b);
- BRC.forEach(c=>brRow(c.k));renderExt('ibext');const root=$('#bru');
+ BRC.forEach(c=>brRow(c.k));renderExt('ibext');
+ setTimeout(()=>{const f=$('#xf_ibext');if(f&&f.contentWindow&&b.externalBruto)f.contentWindow.postMessage({type:'scoutpro-report:restore-external-bruto',data:b.externalBruto},'https://fb-scouting.github.io')},250);
+ const root=$('#bru');
  const onIn=e=>{const t=e.target;if(t.dataset.bf){S.br[t.dataset.bf]=t.value;if(t.dataset.bf==='matchId')brFromMatch();return}const row=t.closest('.crt');if(!row)return;const k=row.dataset.k;if(t.type==='range')brSet(k,{v:+t.value});else if(t.type==='checkbox')brSet(k,{no:t.checked})};
  root.oninput=onIn;root.onchange=onIn;root.onpointerup=e=>{const t=e.target;if(t.type==='range'&&!t.disabled){const k=t.closest('.crt').dataset.k;if((S.br.crit[k]||{}).v==null)brSet(k,{v:+t.value})}};
- $('#br_s').onclick=brSave;$('#br_x').onclick=()=>{const r=brRecord(S.br);dl('informe_bruto_'+norm(r.jugador).replace(/\s+/g,'_')+'_'+r.fecha+'.json',JSON.stringify({tipo:'scoutpro.informe_bruto',formato:1,exportado:new Date().toISOString(),guardado:!!S.br.id&&!brDirty(),informe:r},null,1))};
+ $('#br_s').onclick=brSaveWithExternal;$('#br_x').onclick=()=>{const r=brRecord(S.br);dl('informe_bruto_'+norm(r.jugador).replace(/\s+/g,'_')+'_'+r.fecha+'.json',JSON.stringify({tipo:'scoutpro.informe_bruto',formato:1,exportado:new Date().toISOString(),guardado:!!S.br.id&&!brDirty(),informe:r},null,1))};
  $('#br_p').onclick=brPrint;$('#br_c').onclick=()=>{const go=()=>{S.br=brBlank();brSetRef();renderBruto()};brDirty()?askConfirm('Hay datos cargados sin guardar. ¿Limpiar el formulario igual?',go):go()};
  renderBrList()}
 function brFromMatch(){const m=U.matches.find(x=>x.id===S.br.matchId);if(m){Object.assign(S.br,{fecha:m.fecha,comp:m.comp,local:m.local,visit:m.visit,res:m.res==='-'?'':m.res})}const keep=S.br;renderBruto();S.br=keep}
+async function brSaveWithExternal(){
+ const frame=$('#xf_ibext');
+ if(!frame||!frame.contentWindow){toast('No se pudo conectar con el Informe Bruto externo.');return}
+ try{
+  const snapshot=await new Promise((resolve,reject)=>{
+   let done=false;const finish=(fn,v)=>{if(done)return;done=true;window.removeEventListener('message',onMessage);clearTimeout(timer);fn(v)};
+   const onMessage=ev=>{if(ev.origin!=='https://fb-scouting.github.io'||ev.source!==frame.contentWindow||!ev.data||ev.data.type!=='scoutpro-report:external-bruto-data')return;finish(resolve,ev.data.data||{})};
+   const timer=setTimeout(()=>finish(reject,new Error('El Informe Bruto externo no respondió. Esperá a que termine de cargar e intentá guardar otra vez.')),10000);
+   window.addEventListener('message',onMessage);
+   frame.contentWindow.postMessage({type:'scoutpro-report:collect-external-bruto'},'https://fb-scouting.github.io');
+  });
+  S.br.externalBruto=snapshot;
+  await brSave();
+ }catch(err){toast(err.message||'No se pudo integrar el Informe Bruto externo.');}
+}
 async function brSave(){const b=S.br;if(!b.jugador){toast('Elegí el jugador');return}if(!b.fecha){toast('Falta la fecha del partido');return}
  const r=brRecord(b),now=new Date().toISOString();let rec=b.id&&U.brutos.find(x=>x.id===b.id),prev=rec&&JSON.stringify(rec),isNew=!rec;
  if(rec)Object.assign(rec,r,{id:rec.id,actualizado:now,version:(rec.version||1)+1});else{rec={...r,id:uuid(),creado:now,actualizado:now,version:1};U.brutos.push(rec)}
