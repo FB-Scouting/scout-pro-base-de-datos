@@ -136,7 +136,7 @@ body.pb #bpr{display:block;font:12px/1.4 Arial,sans-serif;color:#000;background:
 <script>
 /* ================= DATOS: fuente única (reemplazable por Excel/Sheets/API) ================= */
 let DB=null,META=null;
-const U={matches:[],informes:[],files:[],photos:{},branding:{},rec:{},market:{},searches:[],mkrev:{},brutos:[],agenda:[],ineto:[],igen:[],sofastats:{}};
+const U={matches:[],informes:[],files:[],photos:{},branding:{},rec:{},market:{},searches:[],mkrev:{},brutos:[],agenda:[],ineto:[],igen:[],sofastats:{},ratings:[]};
 /* ================= STORAGE: IndexedDB local (solo este navegador). Futuro: reemplazar Store por API / base online ================= */
 const Store={db:null,open(){return new Promise((res,rej)=>{const r=indexedDB.open('scoutpro',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>{this.db=r.result;res()};r.onerror=()=>rej(r.error)})},
  get(k){return new Promise(res=>{try{const q=this.db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(undefined)}catch(e){res(undefined)}})},
@@ -917,7 +917,7 @@ document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>{if(a.dataset.v==='i
 $('#sync').onclick=async()=>{const old=await Store.get('sheetscfg')||{};const url=prompt('Pegá la URL de implementación de Apps Script (termina en /exec):',old.url||'');if(url===null)return;const token=prompt('Ingresá el token configurado en Code.gs:',old.token||'');if(token===null)return;if(!(url.trim().startsWith('https://script.google.com/macros/s/')&&url.trim().includes('/exec'))){toast('La URL no parece ser una implementación válida de Apps Script');return}await Store.set('sheetscfg',{url:url.trim(),token:token.trim()});toast('Conexión de Google Sheets configurada ✓');};
 $('#xl').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)loadExcelMotherBase(f)};
 $('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')};
-(async()=>{try{await Store.open();for(const k of ['matches','informes','files','ineto','igen'])U[k]=(await Store.get(k))||[];U.photos=(await Store.get('photos'))||{};U.branding=(await Store.get('branding'))||{};applyBranding();U.market=(await Store.get('market'))||{};U.searches=(await Store.get('searches'))||[];U.mkrev=(await Store.get('mkrev'))||{};U.brutos=(await Store.get('brutos'))||[];U.agenda=(await Store.get('agenda'))||[];U.rec=(await Store.get('rec'))||{};U.sofastats=(await Store.get('sofastats'))||{};U.clubprofiles=(await Store.get('clubprofiles'))||{};S.rec=U.rec;
+(async()=>{try{await Store.open();for(const k of ['matches','informes','files','ineto','igen','ratings'])U[k]=(await Store.get(k))||[];U.photos=(await Store.get('photos'))||{};U.branding=(await Store.get('branding'))||{};applyBranding();U.market=(await Store.get('market'))||{};U.searches=(await Store.get('searches'))||[];U.mkrev=(await Store.get('mkrev'))||{};U.brutos=(await Store.get('brutos'))||[];U.agenda=(await Store.get('agenda'))||[];U.rec=(await Store.get('rec'))||{};U.sofastats=(await Store.get('sofastats'))||{};U.clubprofiles=(await Store.get('clubprofiles'))||{};S.rec=U.rec;
  const m=await Store.get('mother');if(m&&m.db){applyMother(m.db,m.meta);clInit();return}}catch(e){toast('Almacenamiento local no disponible: los datos no se conservarán')}
  chip();show('home');clInit()})();
 
