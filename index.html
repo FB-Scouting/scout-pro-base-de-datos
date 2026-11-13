@@ -136,7 +136,7 @@ body.pb #bpr{display:block;font:12px/1.4 Arial,sans-serif;color:#000;background:
 <script>
 /* ================= DATOS: fuente única (reemplazable por Excel/Sheets/API) ================= */
 let DB=null,META=null;
-const U={matches:[],informes:[],files:[],photos:{},branding:{},rec:{},market:{},searches:[],mkrev:{},brutos:[],agenda:[],ineto:[],igen:[],sofastats:{}};
+const U={matches:[],informes:[],ratings:[],files:[],photos:{},branding:{},rec:{},market:{},searches:[],mkrev:{},brutos:[],agenda:[],ineto:[],igen:[],sofastats:{}};
 /* ================= STORAGE: IndexedDB local (solo este navegador). Futuro: reemplazar Store por API / base online ================= */
 const Store={db:null,open(){return new Promise((res,rej)=>{const r=indexedDB.open('scoutpro',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>{this.db=r.result;res()};r.onerror=()=>rej(r.error)})},
  get(k){return new Promise(res=>{try{const q=this.db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(undefined)}catch(e){res(undefined)}})},
@@ -775,7 +775,7 @@ const CLOUD={
   url:'https://iuufnafevroywwbcafgp.supabase.co',
   key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dWZuYWZldnJveXd3YmNhZmdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNTU0NDUsImV4cCI6MjEwNzYzMTQ0NX0.mO6lMo3YLQfCZrPMMntXjGvbLTtGh2GSdMDZH2T8eMA'
 };
-const CL_ARR=['matches','informes','brutos','agenda','searches','files','ineto','igen'],CL_MAP=['rec','market','mkrev','photos','branding','sofastats','clubprofiles'],CL_ALL=CL_ARR.concat(CL_MAP);
+const CL_ARR=['matches','informes','ratings','brutos','agenda','searches','files','ineto','igen'],CL_MAP=['rec','market','mkrev','photos','branding','sofastats','clubprofiles'],CL_ALL=CL_ARR.concat(CL_MAP);
 const CL={cfg:null,sess:null,st:'none',last:null,err:'',conf:[],busy:false,again:false,base:{},timer:null,motherNew:false};
 const canon=o=>o===null||typeof o!=='object'?JSON.stringify(o):Array.isArray(o)?'['+o.map(canon).join(',')+']':'{'+Object.keys(o).filter(k=>o[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+canon(o[k])).join(',')+'}';
 const hsh=s=>{let a=5381,b=2166136261;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);a=((a<<5)+a+c)|0;b=Math.imul(b^c,16777619)}return(a>>>0).toString(36)+(b>>>0).toString(36)+s.length};
@@ -783,7 +783,7 @@ const encId=(k,id)=>CL_MAP.includes(k)?'u:'+encodeURIComponent(id):String(id),de
 const cloudOn=()=>!!(CL.cfg&&CL.cfg.url&&CL.cfg.key),cloudReady=()=>cloudOn()&&!!CL.sess;
 const cloudNote=()=>cloudReady()?' · se está subiendo a la nube…':' (nube: no activada)';
 const cloudInfo=()=>cloudReady()?'Se guarda en este navegador y se sincroniza con tu cuenta en la nube (mirá el estado arriba).':'Se guarda solo en este navegador. La sincronización en la nube todavía no está activada.';
-const CL_COLL={branding:'Configuración institucional',matches:'Partidos',informes:'Informes',brutos:'Informes brutos',ineto:'Informes netos',igen:'Generador automático',agenda:'Agenda',searches:'Búsquedas',files:'Reportes',rec:'Recomendación',market:'Mercado',mkrev:'Revisión de mercado',photos:'Fotos',clubprofiles:'Perfiles tácticos de clubes'};
+const CL_COLL={branding:'Configuración institucional',matches:'Partidos',informes:'Informes',ratings:'Calificaciones por jornada',brutos:'Informes brutos',ineto:'Informes netos',igen:'Generador automático',agenda:'Agenda',searches:'Búsquedas',files:'Reportes',rec:'Recomendación',market:'Mercado',mkrev:'Revisión de mercado',photos:'Fotos',clubprofiles:'Perfiles tácticos de clubes'};
 function clTitle(k,d){if(!d)return'';try{if(k==='ineto'||k==='igen')return(d.jugador||d.titulo||'Informe')+' · '+fdate(d.fecha);if(k==='informes'||k==='brutos')return(d.jugador||'')+' · '+fdate(d.fecha);if(k==='agenda')return agTitle(d)+' · '+fdate(d.fecha);if(k==='matches')return matchLabel(d);if(k==='searches'||k==='files')return d.name;return''}catch(e){return''}}
 function clLocal(k){const m=new Map();if(CL_ARR.includes(k))U[k].forEach(r=>{const d=k==='files'?{...r,data:undefined}:r;m.set(String(r.id),{d,h:hsh(canon(d))})});else Object.keys(U[k]).forEach(id=>{const d={v:U[k][id]};m.set(id,{d,h:hsh(canon(d))})});return m}
 function clPending(){let n=0;CL_ALL.forEach(k=>{const loc=clLocal(k),B=CL.base[k]||{};loc.forEach((L,id)=>{if(!B[id]||B[id].h!==L.h)n++});Object.keys(B).forEach(id=>{if(!loc.has(id))n++})});return n}
@@ -914,10 +914,10 @@ window.addEventListener('online',()=>clSchedule());document.addEventListener('vi
 /* ================= ARRANQUE ================= */
 $('#selP').onchange=e=>{S.cur=e.target.value;S.fitsel=null;show('inicio')};
 document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>{if(a.dataset.v==='inicio'||a.dataset.v==='jugadores')S.fitsel=null;if(a.dataset.v==='informes'){S.sub=!S.sub;syncSub()}show(a.dataset.v)});
-$('#sync').onclick=async()=>{const old=await Store.get('sheetscfg')||{};const url=prompt('Pegá la URL de implementación de Apps Script (termina en /exec):',old.url||'');if(url===null)return;const token=prompt('Ingresá el token configurado en Code.gs:',old.token||'');if(token===null)return;if(!/^https:\/\/script\\.google\\.com\\/macros\\/s\\/.+\\/exec(?:\\?.*)?$/.test(url.trim())){toast('La URL no parece ser una implementación válida de Apps Script');return}await Store.set('sheetscfg',{url:url.trim(),token:token.trim()});toast('Conexión de Google Sheets configurada ✓');};
+$('#sync').onclick=async()=>{const old=await Store.get('sheetscfg')||{};const url=prompt('Pegá la URL de implementación de Apps Script (termina en /exec):',old.url||'');if(url===null)return;const token=prompt('Ingresá el token configurado en Code.gs:',old.token||'');if(token===null)return;if(!url.trim().includes('script.google.com/macros/s/')||!url.trim().includes('/exec')){toast('La URL no parece ser una implementación válida de Apps Script');return}await Store.set('sheetscfg',{url:url.trim(),token:token.trim()});toast('Conexión de Google Sheets configurada ✓');};
 $('#xl').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)loadExcelMotherBase(f)};
 $('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on')};
-(async()=>{try{await Store.open();for(const k of ['matches','informes','files','ineto','igen'])U[k]=(await Store.get(k))||[];U.photos=(await Store.get('photos'))||{};U.branding=(await Store.get('branding'))||{};applyBranding();U.market=(await Store.get('market'))||{};U.searches=(await Store.get('searches'))||[];U.mkrev=(await Store.get('mkrev'))||{};U.brutos=(await Store.get('brutos'))||[];U.agenda=(await Store.get('agenda'))||[];U.rec=(await Store.get('rec'))||{};U.sofastats=(await Store.get('sofastats'))||{};U.clubprofiles=(await Store.get('clubprofiles'))||{};S.rec=U.rec;
+(async()=>{try{await Store.open();for(const k of ['matches','informes','ratings','files','ineto','igen'])U[k]=(await Store.get(k))||[];U.photos=(await Store.get('photos'))||{};U.branding=(await Store.get('branding'))||{};applyBranding();U.market=(await Store.get('market'))||{};U.searches=(await Store.get('searches'))||[];U.mkrev=(await Store.get('mkrev'))||{};U.brutos=(await Store.get('brutos'))||[];U.agenda=(await Store.get('agenda'))||[];U.rec=(await Store.get('rec'))||{};U.sofastats=(await Store.get('sofastats'))||{};U.clubprofiles=(await Store.get('clubprofiles'))||{};S.rec=U.rec;
  const m=await Store.get('mother');if(m&&m.db){applyMother(m.db,m.meta);clInit();return}}catch(e){toast('Almacenamiento local no disponible: los datos no se conservarán')}
  chip();show('home');clInit()})();
 
