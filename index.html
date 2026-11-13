@@ -159,7 +159,7 @@ function parseWorkbook(wb){const nm={};wb.SheetNames.forEach(x=>nm[x.toLowerCase
  const cl=v=>v===''||v===undefined?null:typeof v==='string'?v.trim()||null:v;
  const players=[];[['Base de datos','Profesional'],['Base de datos RESERVA','Reserva']].forEach(([sh,t])=>rows(sh).slice(1).forEach(r=>{if(!cl(r[0]))return;players.push({n:cl(r[0]),fn:isoD(r[1]),ed:cl(r[2]),nac:cl(r[3]),pos:cl(r[4]),pos2:cl(r[5]),comp:cl(r[6]),club:cl(r[7]),alt:cl(r[8]),pie:cl(r[9]),vm:cl(r[10]),rep:cl(r[11]),fc:isoD(r[12]),tm:cl(r[13]),tier:t})}));
  const seg={};[['Liga Profesional - 2 da parte','LP'],['Primera Nacional','PN'],['Primera B Metro','PB'],['Torneo Proyeccion','TP']].forEach(([sh,k])=>{const R=rows(sh);if(!R.length)return;const cols=R[0].map((x,i)=>i>=4&&/^\d+$/.test(String(x).trim())?i:-1).filter(i=>i>0);
-  R.slice(1).forEach(r=>{const n=cl(r[0]);if(!n)return;(seg[n]=seg[n]||[]).push({k,pos:r[1],club:r[2],prog:cl(r[3]),r:cols.map(i=>cl(r[i])).filter(v=>v!==null)})})});
+  R.slice(1).forEach(r=>{const n=cl(r[0]);if(!n)return;(seg[n]=seg[n]||[]).push({k,pos:r[1],club:r[2],prog:cl(r[3]),r:cols.map(i=>cl(r[i]))})})});
  const st={};rows('Estadisticas').slice(1).forEach(r=>{const n=cl(r[0]);if(n)st[n]={club:r[1],pj:r[2],min:r[3],g:r[4],a:r[5],pp:r[6],du:r[7],ae:r[8],ic:r[9],de:r[10],xg:r[11],xa:r[12],pa:r[13],am:r[14],ro:r[15]}});
  const clubs=rows('Clubes Objetivos').slice(1).filter(r=>cl(r[0])).map(r=>({c:cl(r[0]),l:cl(r[1]),p:cl(r[2]),e:cl(r[3]),u:cl(r[4]),nl:r[5],nc:r[6]}));
  const fc=matchFaces(players,rows('Caras').filter((r,i)=>cl(r[0])&&!(i===0&&!/^https?:/i.test(String(r[1]||''))&&['jugador','jugadores','nombre','player','name'].includes(nkey(r[0])))).map(r=>({n:cl(r[0]),u:cl(r[1])})));
